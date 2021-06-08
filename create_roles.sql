@@ -1,0 +1,27 @@
+CREATE ROLE ketermediasuperuser 
+    LOGIN WITH PASSWORD ketermediasuperuser
+    CREATEROLE;
+
+CREATE ROLE unauthenticated 
+    LOGIN WITH PASSWORD unauthenticated
+    NOCREATEROLE;
+
+CREATE ROLE user 
+    LOGIN WITH PASSWORD user
+    NOCREATEROLE;
+
+CREATE ROLE author 
+    LOGIN WITH PASSWORD author
+    NOCREATEROLE;
+
+CREATE ROLE moderator
+    LOGIN WITH PASSWORD moderator
+    NOCREATEROLE;
+
+CREATE ROLE admin
+    LOGIN WITH PASSWORD admin
+    NOCREATEROLE;
+
+CREATE ROLE auth
+    LOGIN WITH PASSWORD auth
+    NOCREATEROLE;
