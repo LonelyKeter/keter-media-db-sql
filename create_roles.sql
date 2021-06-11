@@ -1,27 +1,28 @@
-CREATE ROLE ketermediasuperuser 
-    LOGIN WITH PASSWORD ketermediasuperuser
+CREATE ROLE ketermediasuperuser WITH
+    LOGIN PASSWORD 'ketermediasuperuser'
     CREATEROLE;
 
-CREATE ROLE unauthenticated 
-    LOGIN WITH PASSWORD unauthenticated
+CREATE ROLE keter_media_unauthenticated WITH
+    LOGIN PASSWORD 'unauthenticated'
     NOCREATEROLE;
 
-CREATE ROLE user 
-    LOGIN WITH PASSWORD user
+CREATE ROLE keter_media_user WITH
+    LOGIN PASSWORD 'keter_media_user'
     NOCREATEROLE;
 
-CREATE ROLE author 
-    LOGIN WITH PASSWORD author
+
+CREATE ROLE keter_media_author WITH
+    LOGIN PASSWORD 'keter_media_author'
     NOCREATEROLE;
 
-CREATE ROLE moderator
-    LOGIN WITH PASSWORD moderator
+CREATE ROLE keter_media_moderator WITH
+    LOGIN PASSWORD 'keter_media_moderator'
     NOCREATEROLE;
 
-CREATE ROLE admin
-    LOGIN WITH PASSWORD admin
+CREATE ROLE keter_media_admin WITH
+    LOGIN PASSWORD 'keter_media_admin'
     NOCREATEROLE;
 
-CREATE ROLE auth
-    LOGIN WITH PASSWORD auth
+CREATE ROLE keter_media_auth WITH
+    LOGIN PASSWORD 'keter_media_auth'
     NOCREATEROLE;

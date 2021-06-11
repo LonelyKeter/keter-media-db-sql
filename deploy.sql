@@ -117,4 +117,85 @@ CREATE TABLE Administration(
   AdminId INT NOT NULL REFERENCES Users,
 	MaterialId INT PRIMARY KEY REFERENCES Materials ON UPDATE CASCADE ON DELETE CASCADE,
 	ReasonId INT REFERENCES AdministrationReasons ON UPDATE CASCADE ON DELETE RESTRICT,
-  Date DATE NOT NULL);
+  Date DATE NOT NULL);--__Unauthenticated schema__--
+CREATE SCHEMA unauthenticated;
+
+--MediaPublic Процедура, возвращающая таблицу
+CREATE OR REPLACE VIEW unauthenticated.Mediaproducts(Id, Title, Kind, AuthorName, AuthorCountry) AS
+  SELECT M.Id, M.Title, M.Kind, U.Login, A.Country
+  FROM public.Mediaproducts M, public.Users U, public.Authors A
+  WHERE (A.Id = M.AuthorId AND U.Id = A.Id AND M.Public = TRUE);  
+
+--MaterialsPublic
+CREATE OR REPLACE VIEW unauthenticated.Materials(MediaId, MaterialId, Format, Quality, LicenseName, DownloadLink) AS
+  SELECT M.MediaId, M.Id, M.Format, M.Quality, L.Title, M.DownloadLink
+    FROM public.Materials M, public.Licenses L 
+    WHERE M.LicenseId = L.Id;
+
+--Authors
+CREATE OR REPLACE VIEW unauthenticated.Authors(Name, Country) AS
+ SELECT U.Login, A.Country 
+  FROM public.Users U, public.Authors A
+  WHERE A.Id = U.Id;
+
+CREATE OR REPLACE VIEW unauthenticated.Tags(Tag) AS  
+  SELECT Tag
+  FROM public.Tags;
+
+CREATE OR REPLACE VIEW PublicReviews(MediaId, UserId, UserName, Rating, Text) AS
+  SELECT R.MediaId, R.UserId, U.Login, R.Rating, R.Text 
+  FROM public.Reviews R, public.Users U, public.Moderation Mod
+  WHERE R.Id NOT IN (Mod.ReviewId); 
+
+
+--__User schema__--
+CREATE SCHEMA "user";CREATE ROLE ketermediasuperuser WITH
+    LOGIN PASSWORD 'ketermediasuperuser'
+    CREATEROLE;
+
+CREATE ROLE keter_media_unauthenticated WITH
+    LOGIN PASSWORD 'unauthenticated'
+    NOCREATEROLE;
+
+CREATE ROLE keter_media_user WITH
+    LOGIN PASSWORD 'keter_media_user'
+    NOCREATEROLE;
+
+
+CREATE ROLE keter_media_author WITH
+    LOGIN PASSWORD 'keter_media_author'
+    NOCREATEROLE;
+
+CREATE ROLE keter_media_moderator WITH
+    LOGIN PASSWORD 'keter_media_moderator'
+    NOCREATEROLE;
+
+CREATE ROLE keter_media_admin WITH
+    LOGIN PASSWORD 'keter_media_admin'
+    NOCREATEROLE;
+
+CREATE ROLE keter_media_auth WITH
+    LOGIN PASSWORD 'keter_media_auth'
+    NOCREATEROLE;--super user
+GRANT ALL ON DATABASE ketermedia TO ketermediasuperuser;
+
+--unauthenticated
+GRANT CONNECT ON DATABASE ketermedia TO keter_media_unauthenticated;
+GRANT USAGE ON SCHEMA unauthenticated TO keter_media_unauthenticated;; 
+
+--user
+GRANT CONNECT ON DATABASE ketermedia TO keter_media_user;
+GRANT USAGE ON SCHEMA "user" TO keter_media_unauthenticated;; 
+
+--author
+GRANT CONNECT ON DATABASE ketermedia TO keter_media_author;
+
+--moderator
+GRANT CONNECT ON DATABASE ketermedia TO keter_media_moderator;
+
+--admin
+GRANT CONNECT ON DATABASE ketermedia TO keter_media_admin;
+
+--auth
+GRANT CONNECT ON DATABASE ketermedia TO keter_media_auth;
+
