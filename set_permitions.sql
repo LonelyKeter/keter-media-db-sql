@@ -17,5 +17,7 @@ GRANT CONNECT ON DATABASE ketermedia TO keter_media_admin;
 
 --auth
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_auth;
-GRANT USAGE ON SCHEMA auth TO keter_media_auth; 
+GRANT USAGE ON SCHEMA auth TO KETER_MEDIA_AUTH; 
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth to keter_media_auth;
+
 

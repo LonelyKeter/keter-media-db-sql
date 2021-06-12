@@ -14,6 +14,7 @@ CREATE OR REPLACE FUNCTION
 		BEGIN
 			INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator)
         VALUES (login, password, email, FALSE, FALSE, FALSE)
+        RETURNING Id
         INTO STRICT new_id;
       RETURN new_id;
 		END;

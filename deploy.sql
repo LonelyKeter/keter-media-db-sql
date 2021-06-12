@@ -142,6 +142,7 @@ CREATE OR REPLACE FUNCTION
 		BEGIN
 			INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator)
         VALUES (login, password, email, FALSE, FALSE, FALSE)
+        RETURNING Id
         INTO STRICT new_id;
       RETURN new_id;
 		END;
@@ -345,6 +346,8 @@ GRANT CONNECT ON DATABASE ketermedia TO keter_media_admin;
 --auth
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_auth;
 GRANT USAGE ON SCHEMA auth TO keter_media_auth; 
+GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA auth to keter_media_auth;
+
 
 SET SCHEMA 'public'; 
 INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator) 
