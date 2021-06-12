@@ -1,3 +1,8 @@
+--__Public schema__--
+DROP SCHEMA IF EXISTS public CASCADE;
+CREATE SCHEMA public;
+SET SCHEMA 'public';
+
 --TYPES AND DOMAINS
 CREATE TABLE Countries(
 	Id VARCHAR(2) PRIMARY KEY,
@@ -23,15 +28,16 @@ CREATE DOMAIN ALIAS AS VARCHAR(25)
 CREATE TYPE QUALITY as ENUM('VERY LOW', 'LOW', 'MEDIUM', 'HIGH', 'VERY HIGH');
 CREATE TYPE PREVIEWSIZE as ENUM('SMALL', 'MEDIUM', 'LARGE');
 
+
 --Authentication and user data
 CREATE TABLE Users(
   Id SERIAL PRIMARY KEY CHECK(Id>0),
   Login VARCHAR(20) UNIQUE NOT NULL,
   Password BYTEA NOT NULL,
-  Email EMAIL NOT NULL,
+  Email EMAIL NOT NULL UNIQUE,
   Author BOOLEAN,
   Moderator BOOLEAN,
-  Amnistrator BOOLEAN);
+  Administrator BOOLEAN);
 
 --Mediaproducts and Materials
 CREATE TABLE Authors(
@@ -117,29 +123,55 @@ CREATE TABLE Administration(
   AdminId INT NOT NULL REFERENCES Users,
 	MaterialId INT PRIMARY KEY REFERENCES Materials ON UPDATE CASCADE ON DELETE CASCADE,
 	ReasonId INT REFERENCES AdministrationReasons ON UPDATE CASCADE ON DELETE RESTRICT,
-  Date DATE NOT NULL);--__Unauthenticated schema__--
+  Date DATE NOT NULL);
+
+
+DROP SCHEMA IF EXISTS auth CASCADE;
+CREATE SCHEMA auth;
+SET SCHEMA 'auth';
+
+CREATE VIEW auth.Users(Id, Login, Password, Email, Author, Moderator, Administrator) AS
+  SELECT Id, Login, Password, Email, Author, Moderator, Administrator
+  FROM public.Users;
+
+CREATE OR REPLACE FUNCTION 
+  auth.RegisterUser(login Users.Login%TYPE, password Users.Password%TYPE, email VARCHAR) returns Users.Id%TYPE 
+  AS $$
+    DECLARE
+		new_id Users.Id%TYPE;
+		BEGIN
+			INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator)
+        VALUES (login, password, email, FALSE, FALSE, FALSE)
+        INTO STRICT new_id;
+      RETURN new_id;
+		END;
+  $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+--__Unauthenticated schema__--
+DROP SCHEMA IF EXISTS unauthenticated CASCADE;
 CREATE SCHEMA unauthenticated;
+SET SCHEMA 'unauthenticated';
 
 --MediaPublic Процедура, возвращающая таблицу
-CREATE OR REPLACE VIEW unauthenticated.Mediaproducts(Id, Title, Kind, AuthorName, AuthorCountry) AS
+CREATE OR REPLACE VIEW Mediaproducts(Id, Title, Kind, AuthorName, AuthorCountry) AS
   SELECT M.Id, M.Title, M.Kind, U.Login, A.Country
   FROM public.Mediaproducts M, public.Users U, public.Authors A
   WHERE (A.Id = M.AuthorId AND U.Id = A.Id AND M.Public = TRUE);  
 
 --MaterialsPublic
-CREATE OR REPLACE VIEW unauthenticated.Materials(MediaId, MaterialId, Format, Quality, LicenseName, DownloadLink) AS
+CREATE OR REPLACE VIEW Materials(MediaId, MaterialId, Format, Quality, LicenseName, DownloadLink) AS
   SELECT M.MediaId, M.Id, M.Format, M.Quality, L.Title, M.DownloadLink
     FROM public.Materials M, public.Licenses L 
     WHERE M.LicenseId = L.Id;
 
 --Authors
-CREATE OR REPLACE VIEW unauthenticated.Authors(Name, Country) AS
+CREATE OR REPLACE VIEW Authors(Name, Country) AS
  SELECT U.Login, A.Country 
   FROM public.Users U, public.Authors A
   WHERE A.Id = U.Id;
 
-CREATE OR REPLACE VIEW unauthenticated.Tags(Tag) AS  
-  SELECT Tag
+CREATE OR REPLACE VIEW Tags(Tag, Popularity) AS  
+  SELECT Tag, 5
   FROM public.Tags;
 
 CREATE OR REPLACE VIEW PublicReviews(MediaId, UserId, UserName, Rating, Text) AS
@@ -148,44 +180,158 @@ CREATE OR REPLACE VIEW PublicReviews(MediaId, UserId, UserName, Rating, Text) AS
   WHERE R.Id NOT IN (Mod.ReviewId); 
 
 
---__User schema__--
-CREATE SCHEMA "user";CREATE ROLE ketermediasuperuser WITH
-    LOGIN PASSWORD 'ketermediasuperuser'
-    CREATEROLE;
+--__Registered schema__--
+DROP SCHEMA IF EXISTS registered CASCADE;
+CREATE SCHEMA registered;
+SET SCHEMA 'registered';
 
-CREATE ROLE keter_media_unauthenticated WITH
-    LOGIN PASSWORD 'unauthenticated'
+--__Author schema__--
+DROP SCHEMA IF EXISTS author CASCADE;
+CREATE SCHEMA author;
+SET SCHEMA 'author';
+
+--__Moderator schema__--
+DROP SCHEMA IF EXISTS moderator CASCADE;
+CREATE SCHEMA moderator;
+SET SCHEMA 'moderator';
+
+--__Admin schema__--
+DROP SCHEMA IF EXISTS admin CASCADE;
+CREATE SCHEMA admin;
+SET SCHEMA 'admin';
+
+--__Create roles__--
+DO $$
+BEGIN
+  CREATE ROLE keter_media_unauthenticated;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_unauthenticated -- it already exists';
+END
+$$;
+
+REVOKE ALL ON ALL TABLES in SCHEMA unauthenticated FROM keter_media_unauthenticated;
+REVOKE ALL ON ALL FUNCTIONS in SCHEMA unauthenticated FROM keter_media_unauthenticated;
+REVOKE ALL ON SCHEMA unauthenticated FROM keter_media_unauthenticated;
+REVOKE ALL ON DATABASE ketermedia FROM keter_media_unauthenticated;
+
+ALTER ROLE keter_media_unauthenticated WITH
+    LOGIN PASSWORD 'keter_media_unauthenticated'
     NOCREATEROLE;
+ALTER ROLE keter_media_unauthenticated 
+    SET search_path TO 'unauthenticated';
 
-CREATE ROLE keter_media_user WITH
-    LOGIN PASSWORD 'keter_media_user'
+
+
+DO $$
+BEGIN
+  CREATE ROLE keter_media_registered;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_registered -- it already exists';
+END
+$$;
+
+REVOKE ALL ON ALL TABLES in SCHEMA registered FROM keter_media_registered;
+REVOKE ALL ON ALL FUNCTIONS in SCHEMA registered FROM keter_media_registered;
+REVOKE ALL ON SCHEMA registered FROM keter_media_registered;
+REVOKE ALL ON DATABASE ketermedia FROM keter_media_registered;
+
+ALTER ROLE keter_media_registered WITH
+    LOGIN PASSWORD 'keter_media_registered'
     NOCREATEROLE;
+ALTER ROLE keter_media_registered 
+    SET search_path TO 'registered';
 
 
-CREATE ROLE keter_media_author WITH
+
+DO $$
+BEGIN
+    CREATE ROLE keter_media_author;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_author -- it already exists';
+END
+$$;
+
+REVOKE ALL ON ALL TABLES in SCHEMA author FROM keter_media_author;
+REVOKE ALL ON ALL FUNCTIONS in SCHEMA author FROM keter_media_author;
+REVOKE ALL ON SCHEMA author FROM keter_media_author;
+REVOKE ALL ON DATABASE ketermedia FROM keter_media_author;
+
+ALTER ROLE keter_media_author WITH
     LOGIN PASSWORD 'keter_media_author'
     NOCREATEROLE;
+ALTER ROLE keter_media_author 
+    SET search_path TO 'author';
 
-CREATE ROLE keter_media_moderator WITH
+
+
+DO $$
+BEGIN
+    CREATE ROLE keter_media_moderator;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_moderator  -- it already exists';
+END
+$$;
+
+REVOKE ALL ON ALL TABLES in SCHEMA moderator FROM keter_media_moderator;
+REVOKE ALL ON ALL FUNCTIONS in SCHEMA moderator FROM keter_media_moderator;
+REVOKE ALL ON SCHEMA moderator FROM keter_media_moderator;
+REVOKE ALL ON DATABASE ketermedia FROM keter_media_moderator;
+
+ALTER ROLE keter_media_moderator  WITH
     LOGIN PASSWORD 'keter_media_moderator'
     NOCREATEROLE;
+ALTER ROLE keter_media_moderator 
+    SET search_path TO 'moderator';
 
-CREATE ROLE keter_media_admin WITH
+
+
+DO $$
+BEGIN
+    CREATE ROLE keter_media_admin;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_admin -- it already exists';
+END
+$$;
+
+REVOKE ALL ON ALL TABLES in SCHEMA admin FROM keter_media_admin;
+REVOKE ALL ON ALL FUNCTIONS in SCHEMA admin FROM keter_media_admin;
+REVOKE ALL ON SCHEMA admin FROM keter_media_admin;
+REVOKE ALL ON DATABASE ketermedia FROM keter_media_admin;
+
+ALTER ROLE keter_media_admin  WITH
     LOGIN PASSWORD 'keter_media_admin'
     NOCREATEROLE;
+ALTER ROLE keter_media_admin 
+    SET search_path TO 'admin';
+    
 
-CREATE ROLE keter_media_auth WITH
+
+DO $$
+BEGIN
+    CREATE ROLE keter_media_auth;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_auth -- it already exists';
+END
+$$;
+
+REVOKE ALL ON ALL TABLES in SCHEMA auth FROM keter_media_auth;
+REVOKE ALL ON ALL FUNCTIONS in SCHEMA auth FROM keter_media_auth;
+REVOKE ALL ON SCHEMA auth FROM keter_media_auth;
+REVOKE ALL ON DATABASE ketermedia FROM keter_media_auth;
+
+ALTER ROLE keter_media_auth  WITH
     LOGIN PASSWORD 'keter_media_auth'
-    NOCREATEROLE;--super user
-GRANT ALL ON DATABASE ketermedia TO ketermediasuperuser;
+    NOCREATEROLE;
+ALTER ROLE keter_media_auth 
+    SET search_path TO 'auth';
 
 --unauthenticated
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_unauthenticated;
-GRANT USAGE ON SCHEMA unauthenticated TO keter_media_unauthenticated;; 
+GRANT USAGE ON SCHEMA unauthenticated TO keter_media_unauthenticated; 
 
 --user
-GRANT CONNECT ON DATABASE ketermedia TO keter_media_user;
-GRANT USAGE ON SCHEMA "user" TO keter_media_unauthenticated;; 
+GRANT CONNECT ON DATABASE ketermedia TO keter_media_registered;
+GRANT USAGE ON SCHEMA registered TO keter_media_registered; 
 
 --author
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_author;
@@ -198,4 +344,18 @@ GRANT CONNECT ON DATABASE ketermedia TO keter_media_admin;
 
 --auth
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_auth;
+GRANT USAGE ON SCHEMA auth TO keter_media_auth; 
+
+SET SCHEMA 'public'; 
+INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator) 
+  VALUES('First author', decode('8a4fd004c3935d029d5939eb285099ebe4bef324a006a3bfd5420995b70295cd', 'hex'), 'firstauthor@mail.com', true, false, false);
+
+INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator)
+  VALUES('First user', decode('366bbe8741cf9ca2c9b5f3112f3879d646fa65f1e33b9a46cf0d1029be3feaa5', 'hex'), 'firstuser@mail.com', false, false, false);
+
+INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator)
+  VALUES('First moderator', decode('11cc040f692807790efa74107855bd40c4862691d0384baef476b74c6abc1106', 'hex'), 'firstmoderator@mail.com', false, true, false);
+
+INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator) 
+  VALUES('First admin', decode('8f28165115617fdd575d1fb94b764ebca67114c91f42ecea4a99868d42d4f3d4', 'hex'), 'firstadmin@mail.com', false, true, false);
 
