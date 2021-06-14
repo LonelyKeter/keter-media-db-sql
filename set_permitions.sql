@@ -5,6 +5,7 @@ GRANT USAGE ON SCHEMA unauthenticated TO keter_media_unauthenticated;
 --user
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_registered;
 GRANT USAGE ON SCHEMA registered TO keter_media_registered; 
+GRANT SELECT ON ALL TABLES IN SCHEMA registered TO keter_media_registered;
 
 --author
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_author;

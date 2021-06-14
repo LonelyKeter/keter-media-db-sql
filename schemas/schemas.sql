@@ -101,9 +101,10 @@ CREATE TABLE MaterialUsage(
 CREATE TABLE Reviews(
 	Id SERIAL PRIMARY KEY,
 	MediaId INT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
+	UserId INT NOT NULL REFERENCES Users,
+	Rating SMALLINT NOT NULL CHECK(Rating > 0 AND RATING <= 10),
 	Text TEXT,
-	Rating INT NOT NULL CHECK(Rating > 0 AND RATING <= 10),
-	UserId INT NOT NULL REFERENCES Users);
+	Date DATE NOT NULL);
 
 CREATE TABLE ModerationReasons(
 	Id SERIAL PRIMARY KEY,
@@ -130,12 +131,12 @@ DROP SCHEMA IF EXISTS auth CASCADE;
 CREATE SCHEMA auth;
 SET SCHEMA 'auth';
 
-CREATE VIEW auth.Users(Id, Login, Password, Email, Author, Moderator, Administrator) AS
+CREATE VIEW Users(Id, Login, Password, Email, Author, Moderator, Administrator) AS
   SELECT Id, Login, Password, Email, Author, Moderator, Administrator
   FROM public.Users;
 
 CREATE OR REPLACE FUNCTION 
-  auth.RegisterUser(login Users.Login%TYPE, password Users.Password%TYPE, email VARCHAR) returns Users.Id%TYPE 
+  RegisterUser(login Users.Login%TYPE, password Users.Password%TYPE, email VARCHAR) returns Users.Id%TYPE 
   AS $$
     DECLARE
 		new_id Users.Id%TYPE;
@@ -186,7 +187,43 @@ DROP SCHEMA IF EXISTS registered CASCADE;
 CREATE SCHEMA registered;
 SET SCHEMA 'registered';
 
---__Author schema__--
+CREATE OR REPLACE VIEW Users(Id, Name, Author, Moderator, Administrator) AS
+  SELECT Id, Login, Author, Moderator, Administrator
+    FROM public.Users;
+
+CREATE OR REPLACE FUNCTION PostReview(
+  user_id Users.Id%TYPE, 
+  media_id public.Mediaproducts.Id%TYPE, 
+  rating SMALLINT,
+  text TEXT)
+  RETURNS void
+  AS $$
+		BEGIN
+			INSERT INTO public.Reviews(MediaId, UserId, Rating, Text, Date)
+        VALUES (media_id, user_id, rating, text, current_date);
+		END;
+  $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION PostReview(
+  user_id Users.Id%TYPE, 
+  title public.Mediaproducts.Title%TYPE,
+  author public.Users.Login%TYPE,
+  rating SMALLINT,
+  text TEXT)
+  RETURNS void
+  AS $$
+    DECLARE
+      media_id public.Mediaproducts.Id%TYPE;
+		BEGIN
+      SELECT Id INTO STRICT media_id 
+        FROM public.Mediaproducts M JOIN public.Users U 
+        ON M.AuthorId = U.Id 
+        WHERE (M.Title = title AND U.Login = author);
+
+			INSERT INTO public.Reviews(MediaId, UserId, Rating, Text, Date)
+        VALUES (media_id, user_id, rating, text, current_date);
+		END;
+  $$ LANGUAGE plpgsql SECURITY DEFINER;--__Author schema__--
 DROP SCHEMA IF EXISTS author CASCADE;
 CREATE SCHEMA author;
 SET SCHEMA 'author';
