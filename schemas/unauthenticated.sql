@@ -3,9 +3,9 @@ DROP SCHEMA IF EXISTS unauthenticated CASCADE;
 CREATE SCHEMA unauthenticated;
 SET SCHEMA 'unauthenticated';
 
---MediaPublic Процедура, возвращающая таблицу
-CREATE OR REPLACE VIEW Mediaproducts(Id, Title, Kind, AuthorName, AuthorCountry) AS
-  SELECT M.Id, M.Title, M.Kind, U.Login, A.Country
+--MediaPublic
+CREATE OR REPLACE VIEW Mediaproducts(Id, Title, Kind, AuthorId, AuthorName, AuthorCountry, Rating) AS
+  SELECT M.Id, M.Title, M.Kind, U.Id, U.Login, A.Country, (M.Rating::real)
   FROM public.Mediaproducts M, public.Users U, public.Authors A
   WHERE (A.Id = M.AuthorId AND U.Id = A.Id AND M.Public = TRUE);  
 

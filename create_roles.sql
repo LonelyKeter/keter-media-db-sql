@@ -123,3 +123,30 @@ ALTER ROLE keter_media_auth  WITH
 ALTER ROLE keter_media_auth 
     SET search_path TO 'auth';
 
+DO $$
+BEGIN
+    CREATE ROLE keter_media_test;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_test -- it already exists';
+END
+$$;
+
+ALTER ROLE keter_media_test WITH
+    LOGIN PASSWORD 'keter_media_test'
+    NOCREATEROLE;
+ALTER ROLE keter_media_auth 
+    SET search_path TO 'test';
+
+DO $$
+BEGIN
+    CREATE ROLE keter_media_update;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_test -- it already exists';
+END
+$$;
+
+ALTER ROLE keter_media_update WITH
+    LOGIN PASSWORD 'keter_media_update'
+    NOCREATEROLE;
+ALTER ROLE keter_media_update 
+    SET search_path TO 'public';
