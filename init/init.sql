@@ -115,3 +115,9 @@ INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
 --Id = 12 Media_d = 5
 INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
   VALUES(5, 25456, '.mp4', 'MEDIUM', 1, 'https//downloadme.com/dowload?path=materialPaTh8');
+INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
+  VALUES(1, 5, 'Not so bad', 6, '2020-12-08 07:07:07');
+INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
+  VALUES(1, 6, 'Nice', 7, '2020-12-08 14:21:09');
+INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
+  VALUES(5, 7, 'First one was better(', 6, '2021-01-02 04:05:06');

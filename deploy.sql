@@ -48,7 +48,7 @@ CREATE TABLE Mediaproducts(
 	Title VARCHAR(30) NOT NULL,
 	AuthorId INT REFERENCES Authors ON DELETE CASCADE,
 	Kind MEDIAKIND NOT NULL,
-	Date DATE NOT NULL,    
+	Date TIMESTAMPTZ NOT NULL,    
 	Rating NUMERIC(1000, 999) CHECK(Rating >= 0 AND Rating <= 10));
 
 CREATE TABLE Coauthors(
@@ -71,7 +71,7 @@ CREATE TABLE Licenses(
 	Id SERIAL PRIMARY KEY,
 	Title CHAR(20) NOT NULL UNIQUE,
 	Text TEXT NOT NULL,
-	Date DATE NOT NULL,
+	Date TIMESTAMPTZ NOT NULL,
 	Relevance BOOLEAN NOT NULL DEFAULT True,
 	Substitution INT DEFAULT 1 REFERENCES Licenses ON UPDATE CASCADE ON DELETE RESTRICT);
 
@@ -93,7 +93,7 @@ CREATE TABLE Previews(
 CREATE TABLE MaterialUsage(
 	MaterialId BIGINT NOT NULL REFERENCES Materials ON UPDATE CASCADE ON DELETE CASCADE,
 	UserId BIGINT NOT NULL REFERENCES Users ON UPDATE CASCADE ON DELETE CASCADE,
-	Date DATE NOT NULL,
+	Date TIMESTAMPTZ NOT NULL,
 	LicenseId INT REFERENCES Licenses ON UPDATE CASCADE ON DELETE RESTRICT,
   PRIMARY KEY(MaterialId, UserId));
 
@@ -102,28 +102,34 @@ CREATE TABLE Reviews(
 	MediaId BIGINT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
 	UserId BIGINT NOT NULL REFERENCES Users,
 	Rating SMALLINT NOT NULL CHECK(Rating > 0 AND RATING <= 10),
-	Text TEXT,
-	Date DATE NOT NULL);
+	Text TEXT CHECK(Text != ''),
+	Date TIMESTAMPTZ NOT NULL);
+
+CREATE VIEW TextReviews(Id, MediaId, UserId, Rating, Text, TIMESTAMPTZ) AS 
+    SELECT Id, MediaId, UserId, Rating, Text, Date FROM Reviews 
+    WHERE Text IS NOT NULL;
 
 CREATE TABLE ModerationReasons(
 	Id SERIAL PRIMARY KEY,
 	Text TEXT NOT NULL);
 
+
+--TODO: Crate trggier to check if review id references text review
 CREATE TABLE Moderation(
-  MederatorId INT NOT NULL REFERENCES Users,
+    MederatorId INT NOT NULL REFERENCES Users,
 	ReviewId INT PRIMARY KEY REFERENCES Reviews ON UPDATE CASCADE ON DELETE CASCADE,
 	ReasonId INT NOT NULL REFERENCES ModerationReasons ON UPDATE CASCADE ON DELETE RESTRICT,
-  Date DATE NOT NULL);
+    Date TIMESTAMPTZ NOT NULL);
 
 CREATE TABLE AdministrationReasons(
 	Id SERIAL PRIMARY KEY,
 	Text TEXT NOT NULL);
 
 CREATE TABLE Administration(
-  AdminId INT NOT NULL REFERENCES Users,
+    AdminId INT NOT NULL REFERENCES Users,
 	MaterialId INT PRIMARY KEY REFERENCES Materials ON UPDATE CASCADE ON DELETE CASCADE,
 	ReasonId INT REFERENCES AdministrationReasons ON UPDATE CASCADE ON DELETE RESTRICT,
-  Date DATE NOT NULL);
+    Date TIMESTAMPTZ NOT NULL);
 
 
 DROP SCHEMA IF EXISTS auth CASCADE;
@@ -160,14 +166,14 @@ CREATE OR REPLACE VIEW Mediaproducts(Id, Title, Kind, AuthorId, AuthorName, Auth
   WHERE (A.Id = M.AuthorId AND U.Id = A.Id AND M.Public = TRUE);  
 
 --MaterialsPublic
-CREATE OR REPLACE VIEW Materials(MediaId, MaterialId, Format, Quality, LicenseName, DownloadLink) AS
-  SELECT M.MediaId, M.Id, M.Format, M.Quality, L.Title, M.DownloadLink
+CREATE OR REPLACE VIEW Materials(MediaId, MaterialId, Format, Quality, Size, LicenseName, DownloadLink) AS
+  SELECT M.MediaId, M.Id, M.Format, M.Quality, M.Size, L.Title, M.DownloadLink
     FROM public.Materials M, public.Licenses L 
     WHERE M.LicenseId = L.Id;
 
 --Authors
-CREATE OR REPLACE VIEW Authors(Name, Country) AS
- SELECT U.Login, A.Country 
+CREATE OR REPLACE VIEW Authors(Id, Name, Country) AS
+ SELECT U.Id, U.Login, A.Country 
   FROM public.Users U, public.Authors A
   WHERE A.Id = U.Id;
 
@@ -175,10 +181,10 @@ CREATE OR REPLACE VIEW Tags(Tag, Popularity) AS
   SELECT Tag, 5
   FROM public.Tags;
 
-CREATE OR REPLACE VIEW PublicReviews(MediaId, UserId, UserName, Rating, Text) AS
+CREATE OR REPLACE VIEW Reviews(MediaId, UserId, UserName, Rating, Text) AS
   SELECT R.MediaId, R.UserId, U.Login, R.Rating, R.Text 
-  FROM public.Reviews R, public.Users U, public.Moderation Mod
-  WHERE R.Id NOT IN (Mod.ReviewId); 
+  FROM public.TextReviews R, public.Users U, public.Moderation Mod
+  WHERE (R.Id NOT IN (Mod.ReviewId));
 
 
 --__Registered schema__--
@@ -199,7 +205,7 @@ CREATE OR REPLACE FUNCTION PostReview(
   AS $$
 		BEGIN
 			INSERT INTO public.Reviews(MediaId, UserId, Rating, Text, Date)
-        VALUES (media_id, user_id, rating, text, current_date);
+                VALUES (media_id, user_id, rating, text, current_date);
 		END;
   $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -542,3 +548,9 @@ INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
 --Id = 12 Media_d = 5
 INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
   VALUES(5, 25456, '.mp4', 'MEDIUM', 1, 'https//downloadme.com/dowload?path=materialPaTh8');
+INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
+  VALUES(1, 5, 'Not so bad', 6, '2020-12-08 07:07:07');
+INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
+  VALUES(1, 6, 'Nice', 7, '2020-12-08 14:21:09');
+INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
+  VALUES(5, 7, 'First one was better(', 6, '2021-01-02 04:05:06');

@@ -16,7 +16,7 @@ CREATE OR REPLACE FUNCTION PostReview(
   AS $$
 		BEGIN
 			INSERT INTO public.Reviews(MediaId, UserId, Rating, Text, Date)
-        VALUES (media_id, user_id, rating, text, current_date);
+                VALUES (media_id, user_id, rating, text, current_date);
 		END;
   $$ LANGUAGE plpgsql SECURITY DEFINER;
 
