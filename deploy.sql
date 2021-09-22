@@ -1,3 +1,4 @@
+BEGIN; 
 --__Public schema__--
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
@@ -11,16 +12,16 @@ CREATE TABLE Countries(
 CREATE UNIQUE INDEX CountriesIndex ON Countries(Id);
 
 CREATE DOMAIN EMAIL VARCHAR
-	CHECK(VALUE ~ '^.+@(.{2,}\.)+.{2,}$');
+	CONSTRAINT email_format CHECK(VALUE ~ '^.+@(.{2,}\.)+.{2,}$');
 
 CREATE DOMAIN HTTPLINK VARCHAR
-	CHECK(VALUE ~ '^https?\/\/(www\.)?([a-z0-9\-]+\.?)+(\/[a-z0-9\-]+)+(\?.*)?$');
+	CONSTRAINT http_link_format CHECK(VALUE ~ '^https?\/\/(www\.)?([a-z0-9\-]+\.?)+(\/[a-z0-9\-]+)+(\?.*)?$');
 
 CREATE DOMAIN FORMAT VARCHAR 
-	CHECK(VALUE ~ '^\..+$');
+	CONSTRAINT format CHECK(VALUE ~ '^\..+$');
 
 CREATE DOMAIN ALIAS AS VARCHAR(25)
-	CHECK(VALUE ~ '^(\w+\s*)+$');
+	CONSTRAINT alias_format CHECK(VALUE ~ '^(\w+\s*)+$');
 
 CREATE TYPE MEDIAKIND as ENUM('Audio', 'Video', 'Image');
 CREATE TYPE QUALITY as ENUM('VERY LOW', 'LOW', 'MEDIUM', 'HIGH', 'VERY HIGH');
@@ -29,7 +30,7 @@ CREATE TYPE PREVIEWSIZE as ENUM('SMALL', 'MEDIUM', 'LARGE');
 
 --Authentication and user data
 CREATE TABLE Users(
-  Id BIGSERIAL PRIMARY KEY CHECK(Id>0),
+  Id BIGSERIAL PRIMARY KEY CONSTRAINT user_primary_key CHECK(Id>0),
   Login VARCHAR(20) UNIQUE NOT NULL,
   Password BYTEA NOT NULL,
   Email EMAIL NOT NULL UNIQUE,
@@ -43,7 +44,7 @@ CREATE TABLE Authors(
 	Country VARCHAR(2) NOT NULL REFERENCES Countries ON UPDATE CASCADE ON DELETE RESTRICT);
 
 CREATE TABLE Mediaproducts(
-	Id BIGSERIAL PRIMARY KEY Check(Id>0),
+	Id BIGSERIAL PRIMARY KEY CONSTRAINT media_primary_key Check(Id>0),
     Public BOOLEAN DEFAULT TRUE NOT NULL,
 	Title VARCHAR(30) NOT NULL,
 	AuthorId INT REFERENCES Authors ON DELETE CASCADE,
@@ -98,14 +99,15 @@ CREATE TABLE MaterialUsage(
   PRIMARY KEY(MaterialId, UserId));
 
 CREATE TABLE Reviews(
-	Id BIGSERIAL PRIMARY KEY,
+    Id BIGSERIAL PRIMARY KEY CONSTRAINT review_id CHECK(Id > 0),
 	MediaId BIGINT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
 	UserId BIGINT NOT NULL REFERENCES Users,
-	Rating SMALLINT NOT NULL CHECK(Rating > 0 AND RATING <= 10),
-	Text TEXT CHECK(Text != ''),
-	Date TIMESTAMPTZ NOT NULL);
+	Rating SMALLINT NOT NULL CONSTRAINT rating_value CHECK(Rating > 0 AND RATING <= 10),
+	Text TEXT CONSTRAINT review_text_not_empty CHECK(Text != ''),
+	Date TIMESTAMPTZ NOT NULL,    
+    CONSTRAINT one_review_per_user UNIQUE(MediaId, UserId));
 
-CREATE VIEW TextReviews(Id, MediaId, UserId, Rating, Text, TIMESTAMPTZ) AS 
+CREATE VIEW TextReviews(Id, MediaId, UserId, Rating, Text, Date) AS 
     SELECT Id, MediaId, UserId, Rating, Text, Date FROM Reviews 
     WHERE Text IS NOT NULL;
 
@@ -116,8 +118,8 @@ CREATE TABLE ModerationReasons(
 
 --TODO: Crate trggier to check if review id references text review
 CREATE TABLE Moderation(
-    MederatorId INT NOT NULL REFERENCES Users,
-	ReviewId INT PRIMARY KEY REFERENCES Reviews ON UPDATE CASCADE ON DELETE CASCADE,
+    MederatorId BIGINT NOT NULL REFERENCES Users,
+	ReviewId BIGINT PRIMARY KEY REFERENCES Reviews ON UPDATE CASCADE ON DELETE CASCADE,
 	ReasonId INT NOT NULL REFERENCES ModerationReasons ON UPDATE CASCADE ON DELETE RESTRICT,
     Date TIMESTAMPTZ NOT NULL);
 
@@ -166,10 +168,15 @@ CREATE OR REPLACE VIEW Mediaproducts(Id, Title, Kind, AuthorId, AuthorName, Auth
   WHERE (A.Id = M.AuthorId AND U.Id = A.Id AND M.Public = TRUE);  
 
 --MaterialsPublic
-CREATE OR REPLACE VIEW Materials(MediaId, MaterialId, Format, Quality, Size, LicenseName, DownloadLink) AS
+CREATE OR REPLACE VIEW Materials(MediaId, MaterialId, Format, Quality, Size, LicenseName) AS
   SELECT M.MediaId, M.Id, M.Format, M.Quality, M.Size, L.Title, M.DownloadLink
     FROM public.Materials M, public.Licenses L 
     WHERE M.LicenseId = L.Id;
+
+--Users
+CREATE OR REPLACE VIEW Users(Id, Name) AS 
+    SELECT Id, Login 
+    FROM public.Users;
 
 --Authors
 CREATE OR REPLACE VIEW Authors(Id, Name, Country) AS
@@ -181,16 +188,21 @@ CREATE OR REPLACE VIEW Tags(Tag, Popularity) AS
   SELECT Tag, 5
   FROM public.Tags;
 
-CREATE OR REPLACE VIEW Reviews(MediaId, UserId, UserName, Rating, Text) AS
-  SELECT R.MediaId, R.UserId, U.Login, R.Rating, R.Text 
-  FROM public.TextReviews R, public.Users U, public.Moderation Mod
-  WHERE (R.Id NOT IN (Mod.ReviewId));
+CREATE OR REPLACE VIEW Reviews(Id, MediaId, UserId, UserName, Rating, Text, Date) AS
+  SELECT R.Id, R.MediaId, R.UserId, U.Login, R.Rating, R.Text, R.Date
+  FROM public.TextReviews R INNER JOIN public.Users U ON R.UserId = U.Id
+  WHERE R.Id NOT IN(SELECT ReviewId FROM public.Moderation);
 
-
---__Registered schema__--
+CREATE OR REPLACE VIEW Licenses(Id, Title, Text, Date) AS
+    SELECT Id, Title, Text, Date 
+    FROM public.Licenses;--__Registered schema__--
 DROP SCHEMA IF EXISTS registered CASCADE;
 CREATE SCHEMA registered;
 SET SCHEMA 'registered';
+
+CREATE OR REPLACE VIEW MaterialUsage(MaterialId, UserId, Date, LicenseId) AS
+    SELECT MaterialId, UserId, Date, LicenseId 
+    FROM public.MaterialUsage; 
 
 CREATE OR REPLACE VIEW Users(Id, Name, Author, Moderator, Administrator) AS
   SELECT Id, Login, Author, Moderator, Administrator
@@ -554,3 +566,4 @@ INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
   VALUES(1, 6, 'Nice', 7, '2020-12-08 14:21:09');
 INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
   VALUES(5, 7, 'First one was better(', 6, '2021-01-02 04:05:06');
+COMMIT; 

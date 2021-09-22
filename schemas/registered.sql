@@ -3,6 +3,10 @@ DROP SCHEMA IF EXISTS registered CASCADE;
 CREATE SCHEMA registered;
 SET SCHEMA 'registered';
 
+CREATE OR REPLACE VIEW MaterialUsage(MaterialId, UserId, Date, LicenseId) AS
+    SELECT MaterialId, UserId, Date, LicenseId 
+    FROM public.MaterialUsage; 
+
 CREATE OR REPLACE VIEW Users(Id, Name, Author, Moderator, Administrator) AS
   SELECT Id, Login, Author, Moderator, Administrator
     FROM public.Users;
