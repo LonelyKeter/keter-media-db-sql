@@ -30,14 +30,16 @@ INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator)
   VALUES('First moderator', decode('11cc040f692807790efa74107855bd40c4862691d0384baef476b74c6abc1106', 'hex'), 'firstmoderator@mail.com', false, true, false);
 --Id = 7
 INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator) 
-  VALUES('First admin', decode('8f28165115617fdd575d1fb94b764ebca67114c91f42ecea4a99868d42d4f3d4', 'hex'), 'firstadmin@mail.com', false, true, false);INSERT INTO Authors(Id, Country)
+  VALUES('First admin', decode('8f28165115617fdd575d1fb94b764ebca67114c91f42ecea4a99868d42d4f3d4', 'hex'), 'firstadmin@mail.com', false, true, false); 
+INSERT INTO Authors(Id, Country)
   VALUES(1, 'UA');
 INSERT INTO Authors(Id, Country)
   VALUES(2, 'RU');
 INSERT INTO Authors(Id, Country)
   VALUES(3, 'BL');
 INSERT INTO Authors(Id, Country)
-  VALUES(4, 'FR');--Id = 1 AuthorId = 1
+  VALUES(4, 'FR'); 
+--Id = 1 AuthorId = 1
 INSERT INTO Mediaproducts(Title, AuthorId, Kind, Date, Rating) 
   VALUES('My first song', 1, 'Audio', '2020-11-11', 7);
 --Id = 2 (Preview for id = 1) AuthorId = 1
@@ -61,6 +63,7 @@ INSERT INTO Mediaproducts(Title, AuthorId, Kind, Date, Rating)
 --Id = 8 AuthorId = 4
 INSERT INTO Mediaproducts(Title, AuthorId, Kind, Date, Rating) 
   VALUES('Very unpopular video', 4, 'Video', '2021-01-02', 2);
+ 
 --Licences
 --Id = 1
 INSERT INTO Licenses(Title, Text, Date, Relevance, Substitution) 
@@ -78,43 +81,45 @@ INSERT INTO Licenses(Title, Text, Date, Relevance, Substitution)
   '2020-01-01', 
   TRUE, 
   NULL);
+ 
 --Materials
 --Id = 1 Media_d = 1
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(1, 54347, '.wav', 'MEDIUM', 1, 'https//downloadme.com/dowload?path=somePaTh2');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(1, '.wav', 'MEDIUM', 1);
 --Id = 2 Media_d = 1
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(1, 8341, '.mp3', 'LOW', 1, 'https//downloadme.com/dowload?path=somePaTh3');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(1, '.mp3', 'LOW', 1);
 --Id = 3 Media_d = 3
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(3, 123306, '.bmp', 'HIGH', 2, 'https//downloadme.com/dowload?path=materialPaTh1');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(3, '.bmp', 'HIGH', 2);
 --Id = 4 Media_d = 3
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
-  VALUES(3, 12345, '.jpg', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh2');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId)
+  VALUES(3, '.jpg', 'MEDIUM', 2);
 --Id = 5 Media_d = 3
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
-  VALUES(3, 995, '.giff', 'VERY LOW', 1, 'https//downloadme.com/dowload?path=materialPaTh3');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId)
+  VALUES(3, '.giff', 'VERY LOW', 1);
 --Id = 6 Media_d = 5
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
-  VALUES(5, 2784, '.ogg', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh4');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId)
+  VALUES(5, '.ogg', 'MEDIUM', 2);
 --Id = 7 Media_d = 5
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
-  VALUES(5, 45345, '.wav', 'HIGH', 2, 'https//downloadme.com/dowload?path=materialPaTh5');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId)
+  VALUES(5, '.wav', 'HIGH', 2);
 --Id = 8 Media_d = 5
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(5, 98648, '.bmp', 'VERY HIGH', 1, 'https//downloadme.com/dowload?path=materialPaTh6');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(5, '.bmp', 'VERY HIGH', 1);
 --Id = 9 Media_d = 6
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(6, 5656, '.png', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh7');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(6, '.png', 'MEDIUM', 2);
 --Id = 10 Media_d = 2
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(2, 2456, '.png', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh7');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(2, '.png', 'MEDIUM', 2);
 --Id = 11 Media_d = 4
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(4, 2456, '.png', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh7');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(4, '.png', 'MEDIUM', 2);
 --Id = 12 Media_d = 5
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(5, 25456, '.mp4', 'MEDIUM', 1, 'https//downloadme.com/dowload?path=materialPaTh8');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(5, '.mp4', 'MEDIUM', 1);
+ 
 INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
   VALUES(1, 5, 'Not so bad', 6, '2020-12-08 07:07:07');
 INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)

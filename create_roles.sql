@@ -1,7 +1,7 @@
 --__Create roles__--
 DO $$
 BEGIN
-  CREATE ROLE keter_media_unauthenticated;
+  CREATE ROLE keter_media_unauthenticated NOINHERIT;
   EXCEPTION WHEN DUPLICATE_OBJECT THEN
   RAISE NOTICE 'not creating role keter_media_unauthenticated -- it already exists';
 END
@@ -141,7 +141,7 @@ DO $$
 BEGIN
     CREATE ROLE keter_media_update;
   EXCEPTION WHEN DUPLICATE_OBJECT THEN
-  RAISE NOTICE 'not creating role keter_media_test -- it already exists';
+  RAISE NOTICE 'not creating role keter_media_update -- it already exists';
 END
 $$;
 
@@ -150,3 +150,21 @@ ALTER ROLE keter_media_update WITH
     NOCREATEROLE;
 ALTER ROLE keter_media_update 
     SET search_path TO 'public';
+
+DO $$
+BEGIN
+    CREATE ROLE keter_media_store;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_store -- it already exists';
+END
+$$;
+
+ALTER ROLE keter_media_store WITH
+    LOGIN PASSWORD 'keter_media_store'
+    NOCREATEROLE;
+ALTER ROLE keter_media_store 
+    SET search_path TO 'public';
+
+REVOKE ALL ON ALL TABLES in SCHEMA public FROM keter_media_store;
+REVOKE ALL ON SCHEMA auth FROM keter_media_store;
+REVOKE ALL ON DATABASE ketermedia FROM keter_media_store;

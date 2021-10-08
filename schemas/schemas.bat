@@ -1,9 +1,21 @@
 @echo off
-type "%~dp0public.sql" > "%~dp0schemas.sql"
-type "%~dp0auth.sql" >> "%~dp0schemas.sql"
-type "%~dp0unauthenticated.sql" >> "%~dp0schemas.sql"
-type "%~dp0registered.sql" >> "%~dp0schemas.sql"
-type "%~dp0author.sql" >> "%~dp0schemas.sql"
-type "%~dp0moderator.sql" >> "%~dp0schemas.sql"
-type "%~dp0admin.sql" >> "%~dp0schemas.sql"
-type "%~dp0test.sql" >> "%~dp0schemas.sql"
+SETLOCAL
+SET output="%~dp0schemas.sql"
+
+echo. >> %output%
+type "%~dp0public.sql" > %output%
+echo. >> %output%
+type "%~dp0auth.sql" >> %output%
+echo. >> %output%
+type "%~dp0unauthenticated.sql" >> %output%
+echo. >> %output%
+type "%~dp0registered.sql" >> %output%
+echo. >> %output%
+type "%~dp0author.sql" >> %output%
+echo. >> %output%
+type "%~dp0moderator.sql" >> %output%
+echo. >> %output%
+type "%~dp0admin.sql" >> %output%
+echo. >> %output%
+type "%~dp0test.sql" >> %output%
+ENDLOCAL

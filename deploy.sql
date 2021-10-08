@@ -1,4 +1,6 @@
 BEGIN; 
+ 
+ 
 --__Public schema__--
 DROP SCHEMA IF EXISTS public CASCADE;
 CREATE SCHEMA public;
@@ -31,9 +33,9 @@ CREATE TYPE PREVIEWSIZE as ENUM('SMALL', 'MEDIUM', 'LARGE');
 --Authentication and user data
 CREATE TABLE Users(
   Id BIGSERIAL PRIMARY KEY CONSTRAINT user_primary_key CHECK(Id>0),
-  Login VARCHAR(20) UNIQUE NOT NULL,
+  Login VARCHAR(20) NOT NULL CONSTRAINT unique_user_name UNIQUE,
   Password BYTEA NOT NULL,
-  Email EMAIL NOT NULL UNIQUE,
+  Email EMAIL NOT NULL CONSTRAINT unique_email UNIQUE,
   Author BOOLEAN,
   Moderator BOOLEAN,
   Administrator BOOLEAN);
@@ -50,7 +52,8 @@ CREATE TABLE Mediaproducts(
 	AuthorId INT REFERENCES Authors ON DELETE CASCADE,
 	Kind MEDIAKIND NOT NULL,
 	Date TIMESTAMPTZ NOT NULL,    
-	Rating NUMERIC(1000, 999) CHECK(Rating >= 0 AND Rating <= 10));
+	Rating NUMERIC(1000, 999) CHECK(Rating >= 0 AND Rating <= 10),
+    Uses BIGINT CHECK(Uses >= 0) NOT NULL DEFAULT 0);
 
 CREATE TABLE Coauthors(
 	CoauthorId INT REFERENCES Authors ON UPDATE CASCADE ON DELETE CASCADE,
@@ -77,14 +80,12 @@ CREATE TABLE Licenses(
 	Substitution INT DEFAULT 1 REFERENCES Licenses ON UPDATE CASCADE ON DELETE RESTRICT);
 
 CREATE TABLE Materials(
-	Id BIGSERIAL PRIMARY KEY,
+	Id BIGSERIAL PRIMARY KEY CONSTRAINT material_primary_key Check(Id>0),
 	MediaId BIGINT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
-    Public BOOLEAN NOT NULL DEFAULT TRUE,
 	Format FORMAT NOT NULL,
 	Quality QUALITY NOT NULL,
-	Size BIGINT NOT NULL,
 	LicenseId INT REFERENCES Licenses ON UPDATE CASCADE ON DELETE RESTRICT DEFAULT 1,
-	DownloadLink HTTPLINK NOT NULL);
+    Uses BIGINT CHECK(Uses >= 0) NOT NULL DEFAULT 0);
 
 CREATE TABLE Previews(
 	Id BIGSERIAL PRIMARY KEY,
@@ -134,6 +135,7 @@ CREATE TABLE Administration(
     Date TIMESTAMPTZ NOT NULL);
 
 
+ 
 DROP SCHEMA IF EXISTS auth CASCADE;
 CREATE SCHEMA auth;
 SET SCHEMA 'auth';
@@ -156,6 +158,7 @@ CREATE OR REPLACE FUNCTION
 		END;
   $$ LANGUAGE plpgsql SECURITY DEFINER;
 
+ 
 --__Unauthenticated schema__--
 DROP SCHEMA IF EXISTS unauthenticated CASCADE;
 CREATE SCHEMA unauthenticated;
@@ -164,14 +167,24 @@ SET SCHEMA 'unauthenticated';
 --MediaPublic
 CREATE OR REPLACE VIEW Mediaproducts(Id, Title, Kind, AuthorId, AuthorName, AuthorCountry, Rating) AS
   SELECT M.Id, M.Title, M.Kind, U.Id, U.Login, A.Country, (M.Rating::real)
-  FROM public.Mediaproducts M, public.Users U, public.Authors A
-  WHERE (A.Id = M.AuthorId AND U.Id = A.Id AND M.Public = TRUE);  
+  FROM public.Mediaproducts M 
+    INNER JOIN public.Users U 
+    ON M.AuthorId = U.Id
+    INNER JOIN public.Authors A
+    ON A.Id = U.Id
+  WHERE M.Public = TRUE;  
 
 --MaterialsPublic
-CREATE OR REPLACE VIEW Materials(MediaId, MaterialId, Format, Quality, Size, LicenseName) AS
-  SELECT M.MediaId, M.Id, M.Format, M.Quality, M.Size, L.Title, M.DownloadLink
-    FROM public.Materials M, public.Licenses L 
-    WHERE M.LicenseId = L.Id;
+CREATE OR REPLACE VIEW Materials(Id, MediaId, Format, Quality, LicenseName) AS
+  SELECT M.Id, M.MediaId, M.Format, M.Quality, L.Title
+    FROM public.Materials M 
+        INNER JOIN public.Licenses L 
+        ON L.Id = M.LicenseId
+    WHERE M.Id NOT IN (SELECT MaterialId FROM public.Administration);
+
+CREATE OR REPLACE VIEW MaterialUsage(MaterialId, UserId, Date, LicenseId) AS
+    SELECT MaterialId, UserId, Date, LicenseId 
+    FROM public.MaterialUsage; 
 
 --Users
 CREATE OR REPLACE VIEW Users(Id, Name) AS 
@@ -181,8 +194,9 @@ CREATE OR REPLACE VIEW Users(Id, Name) AS
 --Authors
 CREATE OR REPLACE VIEW Authors(Id, Name, Country) AS
  SELECT U.Id, U.Login, A.Country 
-  FROM public.Users U, public.Authors A
-  WHERE A.Id = U.Id;
+  FROM public.Users U
+    INNER JOIN public.Authors A
+    ON A.Id = U.Id;
 
 CREATE OR REPLACE VIEW Tags(Tag, Popularity) AS  
   SELECT Tag, 5
@@ -190,26 +204,25 @@ CREATE OR REPLACE VIEW Tags(Tag, Popularity) AS
 
 CREATE OR REPLACE VIEW Reviews(Id, MediaId, UserId, UserName, Rating, Text, Date) AS
   SELECT R.Id, R.MediaId, R.UserId, U.Login, R.Rating, R.Text, R.Date
-  FROM public.TextReviews R INNER JOIN public.Users U ON R.UserId = U.Id
+  FROM public.TextReviews R 
+    INNER JOIN public.Users U 
+    ON R.UserId = U.Id
   WHERE R.Id NOT IN(SELECT ReviewId FROM public.Moderation);
 
 CREATE OR REPLACE VIEW Licenses(Id, Title, Text, Date) AS
     SELECT Id, Title, Text, Date 
-    FROM public.Licenses;--__Registered schema__--
+    FROM public.Licenses; 
+--__Registered schema__--
 DROP SCHEMA IF EXISTS registered CASCADE;
 CREATE SCHEMA registered;
 SET SCHEMA 'registered';
-
-CREATE OR REPLACE VIEW MaterialUsage(MaterialId, UserId, Date, LicenseId) AS
-    SELECT MaterialId, UserId, Date, LicenseId 
-    FROM public.MaterialUsage; 
 
 CREATE OR REPLACE VIEW Users(Id, Name, Author, Moderator, Administrator) AS
   SELECT Id, Login, Author, Moderator, Administrator
     FROM public.Users;
 
 CREATE OR REPLACE FUNCTION PostReview(
-  user_id Users.Id%TYPE, 
+  user_id public.Users.Id%TYPE, 
   media_id public.Mediaproducts.Id%TYPE, 
   rating SMALLINT,
   text TEXT)
@@ -222,7 +235,7 @@ CREATE OR REPLACE FUNCTION PostReview(
   $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION PostReview(
-  user_id Users.Id%TYPE, 
+  user_id public.Users.Id%TYPE, 
   title public.Mediaproducts.Title%TYPE,
   author public.Users.Login%TYPE,
   rating SMALLINT,
@@ -231,36 +244,109 @@ CREATE OR REPLACE FUNCTION PostReview(
   AS $$
     DECLARE
       media_id public.Mediaproducts.Id%TYPE;
-		BEGIN
-      SELECT Id INTO STRICT media_id 
-        FROM public.Mediaproducts M JOIN public.Users U 
-        ON M.AuthorId = U.Id 
-        WHERE (M.Title = title AND U.Login = author);
+	BEGIN
+        SELECT Id INTO STRICT media_id
+          FROM public.Mediaproducts M JOIN public.Users U 
+          ON M.AuthorId = U.Id 
+          WHERE (M.Title = title AND U.Login = author);
 
-			INSERT INTO public.Reviews(MediaId, UserId, Rating, Text, Date)
-        VALUES (media_id, user_id, rating, text, current_date);
-		END;
-  $$ LANGUAGE plpgsql SECURITY DEFINER;--__Author schema__--
+	    INSERT INTO public.Reviews(MediaId, UserId, Rating, Text, Date)
+          VALUES (media_id, user_id, rating, text, current_date);
+	END
+  $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+
+CREATE OR REPLACE FUNCTION UseMaterial(
+  user_id Users.Id%TYPE, 
+  material_id public.Materials.Id%TYPE)
+  RETURNS void
+  AS $$
+    DECLARE
+        license_id public.Licenses.Id%TYPE;
+		BEGIN
+            SELECT LicenseId INTO STRICT license_id
+                FROM Materials 
+                WHERE Id = material_id;
+
+			INSERT INTO public.MaterialUsage(MaterialId, UserId, Date, LicenseId)
+                VALUES (material_id, user_id, current_date, license_id);
+		END
+  $$ LANGUAGE plpgsql SECURITY DEFINER; 
+--__Author schema__--
 DROP SCHEMA IF EXISTS author CASCADE;
 CREATE SCHEMA author;
 SET SCHEMA 'author';
 
+CREATE OR REPLACE FUNCTION AddMaterial(
+  user_id public.Users.Id%TYPE,
+  media_id public.Mediaproducts.Id%TYPE, 
+  license_id public.Licenses.Id%TYPE,
+  format public.Materials.Format%TYPE,
+  quality public.Materials.Quality%TYPE)
+  RETURNS public.Materials.Id%TYPE
+  AS $$
+    DECLARE
+        id public.Materials.Id%TYPE;
+        required_user_id public.Users.Id%TYPE;
+	BEGIN
+        SELECT AuthorId INTO STRICT required_user_id
+            FROM public.Mediaproducts
+            WHERE Id = media_id;
+
+        IF user_id = required_user_id THEN
+            BEGIN
+                INSERT INTO public.Materials(MediaId, LicenseId, Format, Quality)
+                    VALUES (media_id, license_id, format, quality)
+                RETURNING Id INTO STRICT id;
+
+                RETURN Id;
+            END;
+        ELSE 
+            RAISE EXCEPTION 'User_id doesn''t match';
+        END IF;
+	END
+  $$ LANGUAGE plpgsql SECURITY DEFINER;
+
+CREATE OR REPLACE FUNCTION DeleteMaterial(
+  user_id public.Users.Id%TYPE,
+  material_id public.Materials.Id%TYPE)
+  RETURNS void
+  AS $$
+    DECLARE
+        id public.Materials.Id%TYPE;
+        required_user_id public.Users.Id%TYPE;
+	BEGIN
+        SELECT AuthorId INTO STRICT required_user_id
+            FROM public.Mediaproducts
+            WHERE Id = media_id;
+
+        IF user_id = required_user_id THEN
+            DELETE FROM public.Materials
+                WHERE Id = material_id;
+        ELSE 
+            RAISE EXCEPTION 'User_id doesn''t match';
+        END IF;
+	END
+  $$ LANGUAGE plpgsql SECURITY DEFINER; 
 --__Moderator schema__--
 DROP SCHEMA IF EXISTS moderator CASCADE;
 CREATE SCHEMA moderator;
 SET SCHEMA 'moderator';
 
+ 
 --__Admin schema__--
 DROP SCHEMA IF EXISTS admin CASCADE;
 CREATE SCHEMA admin;
 SET SCHEMA 'admin';
 
+ 
 DROP SCHEMA IF EXISTS test CASCADE;
 CREATE SCHEMA test;
-SET SCHEMA 'test';--__Create roles__--
+SET SCHEMA 'test'; 
+--__Create roles__--
 DO $$
 BEGIN
-  CREATE ROLE keter_media_unauthenticated;
+  CREATE ROLE keter_media_unauthenticated NOINHERIT;
   EXCEPTION WHEN DUPLICATE_OBJECT THEN
   RAISE NOTICE 'not creating role keter_media_unauthenticated -- it already exists';
 END
@@ -400,7 +486,7 @@ DO $$
 BEGIN
     CREATE ROLE keter_media_update;
   EXCEPTION WHEN DUPLICATE_OBJECT THEN
-  RAISE NOTICE 'not creating role keter_media_test -- it already exists';
+  RAISE NOTICE 'not creating role keter_media_update -- it already exists';
 END
 $$;
 
@@ -408,19 +494,46 @@ ALTER ROLE keter_media_update WITH
     LOGIN PASSWORD 'keter_media_update'
     NOCREATEROLE;
 ALTER ROLE keter_media_update 
-    SET search_path TO 'public';--unauthenticated
+    SET search_path TO 'public';
+
+DO $$
+BEGIN
+    CREATE ROLE keter_media_store;
+  EXCEPTION WHEN DUPLICATE_OBJECT THEN
+  RAISE NOTICE 'not creating role keter_media_store -- it already exists';
+END
+$$;
+
+ALTER ROLE keter_media_store WITH
+    LOGIN PASSWORD 'keter_media_store'
+    NOCREATEROLE;
+ALTER ROLE keter_media_store 
+    SET search_path TO 'public';
+
+REVOKE ALL ON ALL TABLES in SCHEMA public FROM keter_media_store;
+REVOKE ALL ON SCHEMA auth FROM keter_media_store;
+REVOKE ALL ON DATABASE ketermedia FROM keter_media_store; 
+GRANT USAGE ON SCHEMA public TO PUBLIC;
+
+--unauthenticated
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_unauthenticated;
 GRANT USAGE ON SCHEMA unauthenticated TO keter_media_unauthenticated; 
 GRANT SELECT ON ALL TABLES IN SCHEMA unauthenticated TO keter_media_unauthenticated;
 
 --user
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_registered;
-GRANT USAGE ON SCHEMA registered TO keter_media_registered; 
 
+GRANT USAGE ON SCHEMA registered TO keter_media_registered; 
 GRANT SELECT ON ALL TABLES IN SCHEMA registered TO keter_media_registered;
 
+GRANT keter_media_unauthenticated TO keter_media_registered;
 --author
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_author;
+
+GRANT USAGE ON SCHEMA author TO keter_media_author; 
+GRANT SELECT ON ALL TABLES IN SCHEMA author TO keter_media_author;
+
+GRANT keter_media_unauthenticated, keter_media_registered TO keter_media_author;
 
 --moderator
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_moderator;
@@ -442,7 +555,7 @@ GRANT SELECT, INSERT, UPDATE, DELETE ON ALL TABLES IN SCHEMA test to keter_media
 --test
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_update;
 GRANT USAGE ON SCHEMA public TO keter_media_update; 
---TODO: create update functions and grant permitions
+--TODO: create update functions and grant permitions 
 SET SCHEMA 'public'; 
 --Countries
 INSERT INTO Countries VALUES('UA', 'Ukraine');
@@ -475,14 +588,16 @@ INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator)
   VALUES('First moderator', decode('11cc040f692807790efa74107855bd40c4862691d0384baef476b74c6abc1106', 'hex'), 'firstmoderator@mail.com', false, true, false);
 --Id = 7
 INSERT INTO Users(Login, Password, Email, Author, Moderator, Administrator) 
-  VALUES('First admin', decode('8f28165115617fdd575d1fb94b764ebca67114c91f42ecea4a99868d42d4f3d4', 'hex'), 'firstadmin@mail.com', false, true, false);INSERT INTO Authors(Id, Country)
+  VALUES('First admin', decode('8f28165115617fdd575d1fb94b764ebca67114c91f42ecea4a99868d42d4f3d4', 'hex'), 'firstadmin@mail.com', false, true, false); 
+INSERT INTO Authors(Id, Country)
   VALUES(1, 'UA');
 INSERT INTO Authors(Id, Country)
   VALUES(2, 'RU');
 INSERT INTO Authors(Id, Country)
   VALUES(3, 'BL');
 INSERT INTO Authors(Id, Country)
-  VALUES(4, 'FR');--Id = 1 AuthorId = 1
+  VALUES(4, 'FR'); 
+--Id = 1 AuthorId = 1
 INSERT INTO Mediaproducts(Title, AuthorId, Kind, Date, Rating) 
   VALUES('My first song', 1, 'Audio', '2020-11-11', 7);
 --Id = 2 (Preview for id = 1) AuthorId = 1
@@ -506,6 +621,7 @@ INSERT INTO Mediaproducts(Title, AuthorId, Kind, Date, Rating)
 --Id = 8 AuthorId = 4
 INSERT INTO Mediaproducts(Title, AuthorId, Kind, Date, Rating) 
   VALUES('Very unpopular video', 4, 'Video', '2021-01-02', 2);
+ 
 --Licences
 --Id = 1
 INSERT INTO Licenses(Title, Text, Date, Relevance, Substitution) 
@@ -523,43 +639,45 @@ INSERT INTO Licenses(Title, Text, Date, Relevance, Substitution)
   '2020-01-01', 
   TRUE, 
   NULL);
+ 
 --Materials
 --Id = 1 Media_d = 1
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(1, 54347, '.wav', 'MEDIUM', 1, 'https//downloadme.com/dowload?path=somePaTh2');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(1, '.wav', 'MEDIUM', 1);
 --Id = 2 Media_d = 1
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(1, 8341, '.mp3', 'LOW', 1, 'https//downloadme.com/dowload?path=somePaTh3');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(1, '.mp3', 'LOW', 1);
 --Id = 3 Media_d = 3
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(3, 123306, '.bmp', 'HIGH', 2, 'https//downloadme.com/dowload?path=materialPaTh1');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(3, '.bmp', 'HIGH', 2);
 --Id = 4 Media_d = 3
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
-  VALUES(3, 12345, '.jpg', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh2');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId)
+  VALUES(3, '.jpg', 'MEDIUM', 2);
 --Id = 5 Media_d = 3
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
-  VALUES(3, 995, '.giff', 'VERY LOW', 1, 'https//downloadme.com/dowload?path=materialPaTh3');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId)
+  VALUES(3, '.giff', 'VERY LOW', 1);
 --Id = 6 Media_d = 5
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
-  VALUES(5, 2784, '.ogg', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh4');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId)
+  VALUES(5, '.ogg', 'MEDIUM', 2);
 --Id = 7 Media_d = 5
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink)
-  VALUES(5, 45345, '.wav', 'HIGH', 2, 'https//downloadme.com/dowload?path=materialPaTh5');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId)
+  VALUES(5, '.wav', 'HIGH', 2);
 --Id = 8 Media_d = 5
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(5, 98648, '.bmp', 'VERY HIGH', 1, 'https//downloadme.com/dowload?path=materialPaTh6');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(5, '.bmp', 'VERY HIGH', 1);
 --Id = 9 Media_d = 6
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(6, 5656, '.png', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh7');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(6, '.png', 'MEDIUM', 2);
 --Id = 10 Media_d = 2
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(2, 2456, '.png', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh7');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(2, '.png', 'MEDIUM', 2);
 --Id = 11 Media_d = 4
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(4, 2456, '.png', 'MEDIUM', 2, 'https//downloadme.com/dowload?path=materialPaTh7');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(4, '.png', 'MEDIUM', 2);
 --Id = 12 Media_d = 5
-INSERT INTO Materials(MediaId, Size, Format, Quality, LicenseId, DownloadLink) 
-  VALUES(5, 25456, '.mp4', 'MEDIUM', 1, 'https//downloadme.com/dowload?path=materialPaTh8');
+INSERT INTO Materials(MediaId, Format, Quality, LicenseId) 
+  VALUES(5, '.mp4', 'MEDIUM', 1);
+ 
 INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)
   VALUES(1, 5, 'Not so bad', 6, '2020-12-08 07:07:07');
 INSERT INTO Reviews(MediaId, UserId, Text, Rating, Date)

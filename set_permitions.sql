@@ -1,3 +1,5 @@
+GRANT USAGE ON SCHEMA public TO PUBLIC;
+
 --unauthenticated
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_unauthenticated;
 GRANT USAGE ON SCHEMA unauthenticated TO keter_media_unauthenticated; 
@@ -5,12 +7,18 @@ GRANT SELECT ON ALL TABLES IN SCHEMA unauthenticated TO keter_media_unauthentica
 
 --user
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_registered;
-GRANT USAGE ON SCHEMA registered TO keter_media_registered; 
 
+GRANT USAGE ON SCHEMA registered TO keter_media_registered; 
 GRANT SELECT ON ALL TABLES IN SCHEMA registered TO keter_media_registered;
 
+GRANT keter_media_unauthenticated TO keter_media_registered;
 --author
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_author;
+
+GRANT USAGE ON SCHEMA author TO keter_media_author; 
+GRANT SELECT ON ALL TABLES IN SCHEMA author TO keter_media_author;
+
+GRANT keter_media_unauthenticated, keter_media_registered TO keter_media_author;
 
 --moderator
 GRANT CONNECT ON DATABASE ketermedia TO keter_media_moderator;

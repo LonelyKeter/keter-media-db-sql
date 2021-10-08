@@ -1,17 +1,25 @@
 @echo off
+SETLOCAL
+SET output="%~dp0deploy.sql"
 
-echo BEGIN; > "%~dp0deploy.sql"
+echo BEGIN; > %output%
 
 call "%~dp0schemas\schemas.bat"
 
-type "%~dp0create_db.sql" >> "%~dp0deploy.sql"
+echo. >> %output%
+type "%~dp0create_db.sql" >> %output%
 
-type "%~dp0schemas\schemas.sql" >> "%~dp0deploy.sql"
+echo. >> %output%
+type "%~dp0schemas\schemas.sql" >> %output%
 
-type "%~dp0create_roles.sql" >> "%~dp0deploy.sql"
-type "%~dp0set_permitions.sql" >> "%~dp0deploy.sql"
+echo. >> %output%
+type "%~dp0create_roles.sql" >> %output%
+echo. >> %output%
+type "%~dp0set_permitions.sql" >> %output%
 
 call "%~dp0init\init.bat"
-type "%~dp0init\init.sql" >> "%~dp0deploy.sql"
+echo. >> %output%
+type "%~dp0init\init.sql" >> %output%
 
-echo COMMIT; >> "%~dp0deploy.sql"
+echo COMMIT; >> %output%
+ENDLOCAL
