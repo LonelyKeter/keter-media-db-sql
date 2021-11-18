@@ -17,5 +17,7 @@ type "%~dp0moderator.sql" >> %output%
 echo. >> %output%
 type "%~dp0admin.sql" >> %output%
 echo. >> %output%
+type "%~dp0update.sql" >> %output%
+echo. >> %output%
 type "%~dp0test.sql" >> %output%
 ENDLOCAL

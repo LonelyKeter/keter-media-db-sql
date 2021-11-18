@@ -16,9 +16,6 @@ CREATE DOMAIN EMAIL VARCHAR
 CREATE DOMAIN HTTPLINK VARCHAR
 	CONSTRAINT http_link_format CHECK(VALUE ~ '^https?\/\/(www\.)?([a-z0-9\-]+\.?)+(\/[a-z0-9\-]+)+(\?.*)?$');
 
-CREATE DOMAIN FORMAT VARCHAR 
-	CONSTRAINT format CHECK(VALUE ~ '^\..+$');
-
 CREATE DOMAIN ALIAS AS VARCHAR(25)
 	CONSTRAINT alias_format CHECK(VALUE ~ '^(\w+\s*)+$');
 
@@ -46,15 +43,16 @@ CREATE TABLE Mediaproducts(
 	Id BIGSERIAL PRIMARY KEY CONSTRAINT media_primary_key Check(Id>0),
     Public BOOLEAN DEFAULT TRUE NOT NULL,
 	Title VARCHAR(30) NOT NULL,
-	AuthorId INT REFERENCES Authors ON DELETE CASCADE,
+	AuthorId BIGINT REFERENCES Authors ON DELETE CASCADE,
 	Kind MEDIAKIND NOT NULL,
 	Date TIMESTAMPTZ NOT NULL,    
-	Rating NUMERIC(1000, 999) CHECK(Rating >= 0 AND Rating <= 10),
-    Uses BIGINT CHECK(Uses >= 0) NOT NULL DEFAULT 0);
+    UseCount BIGINT CHECK(UseCount >= 0) NOT NULL DEFAULT 0,
+    Rating NUMERIC(1000,999) CONSTRAINT rating_bounds CHECK(Rating > 0 AND Rating <= 10),
+    CONSTRAINT different_media_titles_for_one_author UNIQUE(Title, AuthorId));
 
 CREATE TABLE Coauthors(
-	CoauthorId INT REFERENCES Authors ON UPDATE CASCADE ON DELETE CASCADE,
-	MediaId INT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
+	CoauthorId BIGINT REFERENCES Authors ON UPDATE CASCADE ON DELETE CASCADE,
+	MediaId BIGINT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
 	PRIMARY KEY(CoauthorId, MediaId));
 
 CREATE TABLE Tags(
@@ -64,9 +62,9 @@ CREATE TABLE Tags(
   );
 
 CREATE TABLE MediaTags(
-	MediaId INT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
-	TagId INT REFERENCES Tags ON UPDATE CASCADE ON DELETE RESTRICT,
-	PRIMARY KEY(MediaId, TagId));
+	MediaId BIGINT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
+	TagId BIGINT REFERENCES Tags ON UPDATE CASCADE ON DELETE RESTRICT,
+	CONSTRAINT one_unique_tag_per_media PRIMARY KEY(MediaId, TagId));
 
 CREATE TABLE Licenses(
 	Id SERIAL PRIMARY KEY,
@@ -79,42 +77,61 @@ CREATE TABLE Licenses(
 CREATE TABLE Materials(
 	Id BIGSERIAL PRIMARY KEY CONSTRAINT material_primary_key Check(Id>0),
 	MediaId BIGINT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
-	Format FORMAT NOT NULL,
+	Format VARCHAR NOT NULL,
 	Quality QUALITY NOT NULL,
 	LicenseId INT REFERENCES Licenses ON UPDATE CASCADE ON DELETE RESTRICT DEFAULT 1,
-    Uses BIGINT CHECK(Uses >= 0) NOT NULL DEFAULT 0);
+    UseCount BIGINT CHECK(UseCount >= 0) NOT NULL DEFAULT 0,
+    Rating NUMERIC(1000,999) CONSTRAINT rating_bounds CHECK(Rating > 0 AND Rating <= 10),
+    DownloadName VARCHAR NOT NULL);
+
+CREATE OR REPLACE FUNCTION InitMaterialDownloadName() RETURNS TRIGGER
+AS $$
+    DECLARE
+        media_title public.Mediaproducts.Title%TYPE;
+        author_name public.Users.Login%TYPE;
+    BEGIN
+        SELECT M.Title, U.Login INTO STRICT media_title, author_name
+            FROM public.Users U JOIN public.Mediaproducts M
+            ON U.Id = M.AuthorId
+            WHERE M.Id = NEW.MediaId;
+
+        NEW.DownloadName := CONCAT(author_name, '_', media_title, '[', NEW.Id, '].', NEW.Format);
+
+        RETURN NEW;
+    END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER OnInsertMaterial
+    BEFORE INSERT ON Materials
+    FOR EACH ROW EXECUTE PROCEDURE InitMaterialDownloadName();
 
 CREATE TABLE Previews(
 	Id BIGSERIAL PRIMARY KEY,
-	MediaId INT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
-	MaterialId INT REFERENCES Materials ON UPDATE CASCADE ON DELETE CASCADE);
+	MediaId BIGINT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
+	MaterialId BIGINT REFERENCES Materials ON UPDATE CASCADE ON DELETE CASCADE);
 
+--TODO: Trigger to check if user is author of material
 CREATE TABLE MaterialUsage(
 	MaterialId BIGINT NOT NULL REFERENCES Materials ON UPDATE CASCADE ON DELETE CASCADE,
 	UserId BIGINT NOT NULL REFERENCES Users ON UPDATE CASCADE ON DELETE CASCADE,
 	Date TIMESTAMPTZ NOT NULL,
 	LicenseId INT REFERENCES Licenses ON UPDATE CASCADE ON DELETE RESTRICT,
-  PRIMARY KEY(MaterialId, UserId));
+    Rating SMALLINT CONSTRAINT rating_bounds CHECK(Rating > 0 AND Rating <= 10),
+    PRIMARY KEY(MaterialId, UserId));
 
+--TODO: Trigger for restricting users from reviewing unused media 
 CREATE TABLE Reviews(
     Id BIGSERIAL PRIMARY KEY CONSTRAINT review_id CHECK(Id > 0),
 	MediaId BIGINT REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
 	UserId BIGINT NOT NULL REFERENCES Users,
-	Rating SMALLINT NOT NULL CONSTRAINT rating_value CHECK(Rating > 0 AND RATING <= 10),
-	Text TEXT CONSTRAINT review_text_not_empty CHECK(Text != ''),
+	Text TEXT NOT NULL CONSTRAINT review_text_not_empty CHECK(Text != ''),
 	Date TIMESTAMPTZ NOT NULL,    
     CONSTRAINT one_review_per_user UNIQUE(MediaId, UserId));
-
-CREATE VIEW TextReviews(Id, MediaId, UserId, Rating, Text, Date) AS 
-    SELECT Id, MediaId, UserId, Rating, Text, Date FROM Reviews 
-    WHERE Text IS NOT NULL;
 
 CREATE TABLE ModerationReasons(
 	Id SERIAL PRIMARY KEY,
 	Text TEXT NOT NULL);
 
-
---TODO: Crate trggier to check if review id references text review
 CREATE TABLE Moderation(
     MederatorId BIGINT NOT NULL REFERENCES Users,
 	ReviewId BIGINT PRIMARY KEY REFERENCES Reviews ON UPDATE CASCADE ON DELETE CASCADE,
@@ -126,8 +143,8 @@ CREATE TABLE AdministrationReasons(
 	Text TEXT NOT NULL);
 
 CREATE TABLE Administration(
-    AdminId INT NOT NULL REFERENCES Users,
-	MaterialId INT PRIMARY KEY REFERENCES Materials ON UPDATE CASCADE ON DELETE CASCADE,
+    AdminId BIGINT NOT NULL REFERENCES Users,
+	MaterialId BIGINT PRIMARY KEY REFERENCES Materials ON UPDATE CASCADE ON DELETE CASCADE,
 	ReasonId INT REFERENCES AdministrationReasons ON UPDATE CASCADE ON DELETE RESTRICT,
     Date TIMESTAMPTZ NOT NULL);
 

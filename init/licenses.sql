@@ -1,3 +1,4 @@
+
 --Licences
 --Id = 1
 INSERT INTO Licenses(Title, Text, Date, Relevance, Substitution) 
