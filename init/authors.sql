@@ -1,8 +1,8 @@
-INSERT INTO Authors(Id, Country)
-  VALUES(1, 'UA');
-INSERT INTO Authors(Id, Country)
-  VALUES(2, 'RU');
-INSERT INTO Authors(Id, Country)
-  VALUES(3, 'BL');
-INSERT INTO Authors(Id, Country)
-  VALUES(4, 'FR');
+INSERT INTO authors(id, country)
+  VALUES(1, 'ua');
+INSERT INTO authors(id, country)
+  VALUES(2, 'ru');
+INSERT INTO authors(id, country)
+  VALUES(3, 'bl');
+INSERT INTO authors(id, country)
+  VALUES(4, 'fr');

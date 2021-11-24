@@ -4,51 +4,130 @@ CREATE SCHEMA unauthenticated;
 SET SCHEMA 'unauthenticated';
 
 --MediaPublic
-CREATE OR REPLACE VIEW Mediaproducts(Id, Title, Kind, AuthorId, AuthorName, AuthorCountry, Rating, UseCount) AS
-  SELECT M.Id, M.Title, M.Kind, U.Id, U.Login, A.Country, (M.Rating::real), M.UseCount
-  FROM public.Mediaproducts M 
-    INNER JOIN public.Users U 
-    ON M.AuthorId = U.Id
-    INNER JOIN public.Authors A
-    ON A.Id = U.Id
-  WHERE M.Public = TRUE;  
+CREATE OR REPLACE VIEW mediaproducts(
+    id, 
+    title, 
+    kind, 
+    author_id, 
+    author_name, 
+    author_country, 
+    rating, 
+    use_count
+) AS
+SELECT 
+    m.id, 
+    m.title,
+    m.kind, 
+    u.id, 
+    u.login, 
+    a.country, 
+    (m.rating::real), 
+    m.use_count
+FROM public.mediaproducts m 
+INNER JOIN public.users u 
+    ON m.author_id = u.id
+INNER JOIN public.authors a
+    ON a.id = u.id
+WHERE m.public = TRUE;  
 
 --MaterialsPublic
-CREATE OR REPLACE VIEW Materials(Id, MediaId, Format, Quality, LicenseName, Rating, UseCount, DownloadName) AS
-  SELECT M.Id, M.MediaId, M.Format, M.Quality, L.Title, (M.Rating::real), M.UseCount, DownloadName
-    FROM public.Materials M 
-        INNER JOIN public.Licenses L 
-        ON L.Id = M.LicenseId
-    WHERE M.Id NOT IN (SELECT MaterialId FROM public.Administration);
+CREATE OR REPLACE VIEW materials(
+    id, 
+    media_id, 
+    format, 
+    quality, 
+    license_name, 
+    rating, 
+    use_count, 
+    download_name
+) AS
+SELECT 
+    m.id, 
+    m.media_id, 
+    m.format, 
+    m.quality, 
+    l.title, 
+    (m.rating::real), 
+    m.use_count, 
+    download_name
+FROM public.materials m 
+INNER JOIN public.licenses l 
+    ON l.id = m.license_id
+WHERE m.id NOT IN (SELECT material_id FROM public.administration);
 
 
-CREATE OR REPLACE VIEW MaterialUsage(MaterialId, UserId, Date, LicenseId, Rating) AS
-    SELECT MaterialId, UserId, Date, LicenseId, Rating
-    FROM public.MaterialUsage; 
+CREATE OR REPLACE VIEW material_usage(
+    material_id, 
+    user_id, 
+    date, 
+    license_id, 
+    rating
+) AS
+SELECT 
+    material_id, 
+    user_id, 
+    date, 
+    license_id,
+    rating
+FROM public.material_usage; 
 
 --Users
-CREATE OR REPLACE VIEW Users(Id, Name, Author, Moderator, Administrator) AS 
-    SELECT Id, Login, Author, Moderator, Administrator
-    FROM public.Users;
+CREATE OR REPLACE VIEW users(
+    id, 
+    name, 
+    is_author, 
+    administration_permissions
+) AS 
+SELECT 
+    id, 
+    login, 
+    id IN (SELECT id FROM public.authors), 
+    administration_permissions 
+FROM public.users;
 
 --Authors
-CREATE OR REPLACE VIEW Authors(Id, Name, Country) AS
- SELECT U.Id, U.Login, A.Country 
-  FROM public.Users U
-    INNER JOIN public.Authors A
-    ON A.Id = U.Id;
+CREATE OR REPLACE VIEW authors(
+    id, 
+    name, 
+    country
+) AS
+SELECT 
+    u.id, 
+    u.login, 
+    a.country 
+FROM public.users u
+INNER JOIN public.authors a
+    ON a.id = u.id;
 
-CREATE OR REPLACE VIEW Tags(Tag, Popularity) AS  
-  SELECT Tag, 5
-  FROM public.Tags;
+CREATE OR REPLACE VIEW reviews(
+    id, 
+    media_id, 
+    user_id, 
+    user_name, 
+    text, 
+    date
+) AS
+SELECT 
+    r.id, 
+    r.media_id, 
+    r.user_id, 
+    u.login, 
+    r.text, 
+    r.date
+FROM public.reviews r 
+INNER JOIN public.users u 
+    ON r.user_id = u.id
+WHERE r.id NOT IN(SELECT review_id FROM public.moderation);
 
-CREATE OR REPLACE VIEW Reviews(Id, MediaId, UserId, UserName, Text, Date) AS
-  SELECT R.Id, R.MediaId, R.UserId, U.Login, R.Text, R.Date
-  FROM public.Reviews R 
-    INNER JOIN public.Users U 
-    ON R.UserId = U.Id
-  WHERE R.Id NOT IN(SELECT ReviewId FROM public.Moderation);
-
-CREATE OR REPLACE VIEW Licenses(Id, Title, Text, Date) AS
-    SELECT Id, Title, Text, Date 
-    FROM public.Licenses;
+CREATE OR REPLACE VIEW licenses(
+    id, 
+    title, 
+    text, 
+    date
+) AS
+SELECT 
+    id, 
+    title, 
+    text, 
+    date 
+FROM public.licenses;

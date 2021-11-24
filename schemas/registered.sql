@@ -3,60 +3,79 @@ DROP SCHEMA IF EXISTS registered CASCADE;
 CREATE SCHEMA registered;
 SET SCHEMA 'registered';
 
-CREATE OR REPLACE FUNCTION PostReview(
-  user_id public.Users.Id%TYPE, 
-  media_id public.Mediaproducts.Id%TYPE, 
-  text TEXT)
-  RETURNS void
+CREATE OR REPLACE FUNCTION post_review(
+  user_id   public.users.Id%TYPE, 
+  media_id  public.mediaproducts.Id%TYPE, 
+  text      TEXT)
+RETURNS void
   AS $$
-		BEGIN
-			INSERT INTO public.Reviews(MediaId, UserId, Text, Date)
-                VALUES (media_id, user_id, text, current_date);
-		END;
+	BEGIN
+		INSERT INTO public.reviews(
+            media_id, 
+            user_id, 
+            text, 
+            date)
+        VALUES (
+            media_id, 
+            user_id, 
+            text, 
+            current_date);
+	END;
   $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION PostReview(
-  user_id public.Users.Id%TYPE, 
-  title public.Mediaproducts.Title%TYPE,
-  author public.Users.Login%TYPE,
+  user_id   public.users.id%TYPE, 
+  title     public.mediaproducts.title%TYPE,
+  author    public.users.login%TYPE,
   text TEXT)
   RETURNS void
   AS $$
     DECLARE
-      media_id public.Mediaproducts.Id%TYPE;
+      media_id  public.mediaproducts.id%TYPE;
 	BEGIN
-        SELECT Id INTO STRICT media_id
-          FROM public.Mediaproducts M JOIN public.Users U 
-          ON M.AuthorId = U.Id 
-          WHERE (M.Title = title AND U.Login = author);
+        SELECT 
+            id 
+        INTO STRICT 
+            media_id
+        FROM public.mediaproducts m JOIN public.users u 
+            ON m.author_id = u.id 
+        WHERE (M.Title = title AND U.Login = author);
 
-	    INSERT INTO public.Reviews(MediaId, UserId, Text, Date)
-          VALUES (media_id, user_id, text, current_date);
+	    INSERT INTO public.reviews(
+            media_id, 
+            user_id, 
+            text, 
+            date)
+        VALUES (
+            media_id, 
+            user_id, 
+            text, 
+            current_date);
 	END
   $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 
-CREATE OR REPLACE FUNCTION CreateMaterialUsage(
-  user_id public.Users.Id%TYPE, 
-  material_id public.Materials.Id%TYPE)
+CREATE OR REPLACE FUNCTION create_material_usage(
+  user_id       public.users.id%TYPE, 
+  material_id   public.materials.id%TYPE)
   RETURNS void
   AS $$
     DECLARE
-        license_id public.Licenses.Id%TYPE;
-		BEGIN
-            SELECT LicenseId INTO STRICT license_id
-                FROM public.Materials 
-                WHERE Id = material_id;
+    v_license_id public.licenses.id%TYPE;
+	BEGIN
+        SELECT license_id INTO STRICT v_license_id
+            FROM public.materials 
+            WHERE id = material_id;
 
-			INSERT INTO public.MaterialUsage(MaterialId, UserId, Date, LicenseId)
-                VALUES (material_id, user_id, current_date, license_id);
+		INSERT INTO public.material_usage(material_id, user_id, date, license_id)
+            VALUES (material_id, user_id, current_date, v_license_id);
 		END
   $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION UpdateMaterialRating(
-  material_id public.Materials.Id%TYPE,
-  user_id public.Users.Id%TYPE,
-  input_rating public.MaterialUsage.Rating%TYPE)
+CREATE OR REPLACE FUNCTION update_material_rating(
+  material_id   public.materials.id%TYPE,
+  user_id       public.users.id%TYPE,
+  input_rating  public.material_usage.rating%TYPE)
   RETURNS void
   AS $$
 	BEGIN
@@ -64,8 +83,8 @@ CREATE OR REPLACE FUNCTION UpdateMaterialRating(
             RAISE EXCEPTION 'Rating cannot be NULL';
         END IF;
 
-		UPDATE public.MaterialUsage
-            SET Rating = input_rating
-            WHERE MaterialId = material_id AND UserId = user_id;
+		UPDATE public.material_usage
+            SET rating = input_rating
+            WHERE material_id = material_id AND user_id = user_id;
 	END
   $$ LANGUAGE plpgsql SECURITY DEFINER;

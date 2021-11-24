@@ -1,7 +1,7 @@
 
 --Licences
 --Id = 1
-INSERT INTO Licenses(Title, Text, Date, Relevance, Substitution) 
+INSERT INTO licenses(title, text, date, relevance, substitution) 
   VALUES(
   'FREE', 
   'You can do whatever you want and however you like', 
@@ -9,7 +9,7 @@ INSERT INTO Licenses(Title, Text, Date, Relevance, Substitution)
   TRUE, 
   NULL);
 --Id = 2
-INSERT INTO Licenses(Title, Text, Date, Relevance, Substitution) 
+INSERT INTO licenses(title, text, date, relevance, substitution) 
   VALUES(
   'Creative Commons', 
   'You can do whatever you want and however you like, if you don''t make money', 

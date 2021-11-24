@@ -1,8 +1,8 @@
 --Countries
-INSERT INTO Countries VALUES('UA', 'Ukraine');
-INSERT INTO Countries VALUES('RU', 'Russia');
-INSERT INTO Countries VALUES('BL', 'Belarus');
-INSERT INTO Countries VALUES('IT', 'Italy');
-INSERT INTO Countries VALUES('FR', 'France');
-INSERT INTO Countries VALUES('GR', 'Germany');
-INSERT INTO Countries VALUES('SP', 'Spain');
+INSERT INTO countries VALUES('ua', 'Ukraine');
+INSERT INTO countries VALUES('ru', 'Russia');
+INSERT INTO countries VALUES('bl', 'Belarus');
+INSERT INTO countries VALUES('it', 'Italy');
+INSERT INTO countries VALUES('fr', 'France');
+INSERT INTO countries VALUES('gr', 'Germany');
+INSERT INTO countries VALUES('sp', 'Spain');

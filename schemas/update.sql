@@ -3,48 +3,60 @@ DROP SCHEMA IF EXISTS update CASCADE;
 CREATE SCHEMA update;
 SET SCHEMA 'update';
 
-CREATE OR REPLACE FUNCTION UpdateRatings() RETURNS void
+CREATE OR REPLACE FUNCTION update_ratings() RETURNS void
 AS $$
 BEGIN
-    WITH Ratings AS (
-        SELECT MaterialId, AVG(Rating) as Rating 
-            FROM public.MaterialUsage
-            GROUP BY MaterialId)
-    UPDATE public.Materials
-        SET Rating = R.Rating
-        FROM Ratings R
-        WHERE Id = R.MaterialId;
+    WITH ratings AS (
+        SELECT 
+            material_id, 
+            AVG(rating) AS rating 
+        FROM public.material_usage
+        GROUP BY material_id
+    )
+    UPDATE public.materials
+        SET rating = r.rating
+        FROM ratings r
+        WHERE id = r.material_id;
 
-    WITH Ratings AS (
-        SELECT MediaId, AVG(Rating) as Rating 
-            FROM public.Materials
-            GROUP BY MediaId)
-    UPDATE public.Mediaproducts
-        SET Rating = R.Rating
-        FROM Ratings R
-        WHERE Id = R.MediaId;
+    WITH ratings AS (
+        SELECT 
+            media_id, 
+            AVG(rating) AS rating 
+        FROM public.materials
+        GROUP BY media_id
+    )
+    UPDATE public.mediaproducts
+        SET rating = r.rating
+        FROM ratings r
+        WHERE id = r.media_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION UpdateUseCount() RETURNS void
+CREATE OR REPLACE FUNCTION update_use_count() RETURNS void
 AS $$
 BEGIN
-    WITH UseCounts AS (
-        SELECT MaterialId, COUNT(*) as UseCount
-            FROM public.MaterialUsage
-            GROUP BY MaterialId)
-    UPDATE public.Materials
-        SET UseCount = U.UseCount
-        FROM UseCounts U
-        WHERE Id = U.MaterialId;
+    WITH use_counts AS (
+        SELECT 
+            material_id, 
+            COUNT(*) AS use_count
+        FROM public.material_usage
+        GROUP BY material_id
+    )
+    UPDATE public.materials
+        SET use_count = u.use_count
+        FROM use_counts u
+        WHERE id = u.material_id;
 
-    WITH UseCounts AS (
-        SELECT MediaId, SUM(UseCount) as UseCount
-            FROM public.Materials
-            GROUP BY MediaId)
-    UPDATE public.Mediaproducts
-        SET UseCount = U.UseCount
-        FROM UseCounts U
-        WHERE Id = U.MediaId;
+    WITH use_counts AS (
+        SELECT 
+            media_id, 
+            SUM(use_count) as use_count
+        FROM public.materials
+        GROUP BY media_id
+    )
+    UPDATE public.mediaproducts
+        SET use_count = u.use_count
+        FROM use_counts u
+        WHERE id = u.media_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
