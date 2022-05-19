@@ -36,14 +36,14 @@ INNER JOIN (
     FROM public.users) AS adm
     ON a.admin_id = adm.id;
 
-CREATE OR REPLACE FUNCTION insert_moderation(
+CREATE OR REPLACE FUNCTION insert_administration(
     admin_id    public.users.id%TYPE, 
-    media_id            public.mediaproducts.id%TYPE, 
-    reason_id           public.administration_reasons.id%TYPE)
+    media_id    public.mediaproducts.id%TYPE, 
+    reason_id   public.administration_reasons.id%TYPE)
 RETURNS public.mediaproducts.id%TYPE
 AS $$
 BEGIN
-    INSERT INTO public.moderation(admin_id, media_id, reason_id, date)
+    INSERT INTO public.administration(admin_id, media_id, reason_id, date)
         VALUES(admin_id, media_id, reason_id, current_date);
     
     RETURN media_id;
