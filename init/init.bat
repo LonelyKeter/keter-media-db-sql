@@ -3,7 +3,6 @@ SETLOCAL
 SET output="%~dp0init.sql"
 
 echo SET SCHEMA 'public'; > %output%
-type "%~dp0countries.sql" >> %output%
 
 type "%~dp0users.sql" >> %output%
 echo. >> %output%

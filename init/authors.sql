@@ -1,8 +1,6 @@
-INSERT INTO authors(id, country)
-  VALUES(1, 'ua');
-INSERT INTO authors(id, country)
-  VALUES(2, 'ru');
-INSERT INTO authors(id, country)
-  VALUES(3, 'bl');
-INSERT INTO authors(id, country)
-  VALUES(4, 'fr');
+INSERT INTO authors(id, email)
+VALUES
+    (1, 'a@mail.com'),
+    (2, 'b@mail.com'),
+    (3, 'c@mail.com'),
+    (4, 'd@mail.com');

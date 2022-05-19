@@ -1,4 +1,3 @@
---Materials
 INSERT INTO materials (media_id,format,quality,license_id)
 VALUES
   (16,'ogg','low',3),

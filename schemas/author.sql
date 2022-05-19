@@ -19,7 +19,7 @@ AS $$
 
         INSERT INTO public.mediaproducts(author_id, title, kind, date)
             VALUES(user_id, media_title, media_kind, current_date)
-            RETURNING Id 
+            RETURNING id 
             INTO STRICT created_media_id;
 
         RETURN created_media_id;

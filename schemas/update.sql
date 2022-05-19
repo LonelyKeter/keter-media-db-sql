@@ -18,6 +18,7 @@ BEGIN
         FROM ratings r
         WHERE id = r.material_id;
 
+
     WITH ratings AS (
         SELECT 
             media_id, 
@@ -29,6 +30,19 @@ BEGIN
         SET rating = r.rating
         FROM ratings r
         WHERE id = r.media_id;
+
+
+    WITH ratings AS (
+        SELECT 
+            author_id, 
+            AVG(rating) AS rating 
+        FROM public.mediaproducts
+        GROUP BY author_id
+    )
+    UPDATE public.authors
+        SET rating = r.rating
+        FROM ratings r
+        WHERE id = r.author_id;
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 

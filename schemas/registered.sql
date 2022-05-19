@@ -23,7 +23,7 @@ RETURNS void
 	END;
   $$ LANGUAGE plpgsql SECURITY DEFINER;
 
-CREATE OR REPLACE FUNCTION PostReview(
+CREATE OR REPLACE FUNCTION post_review(
   user_id   public.users.id%TYPE, 
   title     public.mediaproducts.title%TYPE,
   author    public.users.login%TYPE,
@@ -73,18 +73,18 @@ CREATE OR REPLACE FUNCTION create_material_usage(
   $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 CREATE OR REPLACE FUNCTION update_material_rating(
-  material_id   public.materials.id%TYPE,
-  user_id       public.users.id%TYPE,
-  input_rating  public.material_usage.rating%TYPE)
+  v_material_id   public.materials.id%TYPE,
+  v_user_id       public.users.id%TYPE,
+  v_rating        public.material_usage.rating%TYPE)
   RETURNS void
   AS $$
 	BEGIN
-        IF input_rating IS NULL THEN
+        IF v_rating IS NULL THEN
             RAISE EXCEPTION 'Rating cannot be NULL';
         END IF;
 
 		UPDATE public.material_usage
-            SET rating = input_rating
-            WHERE material_id = material_id AND user_id = user_id;
+            SET rating = v_rating
+            WHERE material_id = v_material_id AND user_id = v_user_id;
 	END
   $$ LANGUAGE plpgsql SECURITY DEFINER;

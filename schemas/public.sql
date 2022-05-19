@@ -4,11 +4,6 @@ CREATE SCHEMA public;
 SET SCHEMA 'public';
 
 --TYPES AND DOMAINS
-CREATE TABLE countries(
-	id          VARCHAR(2)  PRIMARY KEY,
-	full_name   VARCHAR     NOT NULL);
-
-CREATE UNIQUE INDEX countries_index ON countries(id);
 
 CREATE DOMAIN EMAIL VARCHAR
 	CONSTRAINT email_format CHECK(VALUE ~ '^.+@(.{2,}\.)+.{2,}$');
@@ -18,6 +13,12 @@ CREATE DOMAIN HTTPLINK VARCHAR
 
 CREATE DOMAIN ALIAS AS VARCHAR(25)
 	CONSTRAINT alias_format CHECK(VALUE ~ '^(\w+\s*)+$');
+
+CREATE DOMAIN RATING NUMERIC(1000, 998)
+    CONSTRAINT rating_bounds CHECK(VALUE > 0 and VALUE <= 10);
+
+CREATE DOMAIN USER_RATING SMALLINT
+    CONSTRAINT rating_bounds CHECK(VALUE > 0 and VALUE <= 10);
 
 CREATE TYPE MEDIAKIND as ENUM('audio', 'video', 'image');
 CREATE TYPE QUALITY as ENUM('very low', 'low', 'medium', 'high', 'very high');
@@ -46,23 +47,24 @@ CREATE TABLE users(
 --Mediaproducts and Materials
 CREATE TABLE authors(
 	id      BIGSERIAL   PRIMARY KEY REFERENCES users,
-	country VARCHAR(2)  NOT NULL    REFERENCES countries ON UPDATE CASCADE ON DELETE RESTRICT);
+    email   EMAIL       NOT NULL    UNIQUE,
+    rating  RATING);
 
 CREATE TABLE mediaproducts(
 	id          BIGSERIAL           PRIMARY KEY CONSTRAINT media_primary_key CHECK(id>0),
     public      BOOLEAN             NOT NULL    DEFAULT TRUE,
-	title       VARCHAR(30)         NOT NULL,
+	title       VARCHAR(50)         NOT NULL,
 	author_id   BIGINT              NOT NULL    REFERENCES Authors ON DELETE CASCADE,
 	kind        MEDIAKIND           NOT NULL,
 	date        TIMESTAMPTZ         NOT NULL,    
     use_count   BIGINT              NOT NULL    CONSTRAINT use_count_bound CHECK(use_count >= 0) DEFAULT 0,
-    rating      NUMERIC(1000,999)               CONSTRAINT rating_bounds CHECK(rating > 0 and rating <= 10),
+    rating      RATING,
 
     CONSTRAINT different_media_titles_for_one_author UNIQUE(title, author_id));
 
 CREATE TABLE licenses(
 	id              SERIAL      PRIMARY KEY,
-	title           CHAR(20)    NOT NULL        UNIQUE,
+	title           CHAR(40)    NOT NULL        UNIQUE,
 	text            TEXT        NOT NULL,
 	date            TIMESTAMPTZ NOT NULL,
 	relevance       BOOLEAN     NOT NULL        DEFAULT True,
@@ -70,12 +72,12 @@ CREATE TABLE licenses(
 
 CREATE TABLE materials(
 	id              BIGSERIAL           PRIMARY KEY CONSTRAINT material_primary_key CHECK(id>0),
-	media_id        BIGINT              NOT NULL    REFERENCES Mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
+	media_id        BIGINT              NOT NULL    REFERENCES mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
 	format          VARCHAR             NOT NULL,
-	quality QUALITY                     NOT NULL,
-	license_id      INT                 NOT NULL    REFERENCES Licenses ON UPDATE CASCADE ON DELETE RESTRICT DEFAULT 1,
-    use_count       BIGINT              NOT NULL    CHECK(use_count >= 0) DEFAULT 0,
-    rating          NUMERIC(1000,999)               CONSTRAINT rating_bounds CHECK(rating > 0 and rating <= 10),
+	quality         QUALITY             NOT NULL,
+	license_id      INT                 NOT NULL    REFERENCES licenses ON UPDATE CASCADE ON DELETE RESTRICT DEFAULT 1,
+    use_count       BIGINT              NOT NULL    CONSTRAINT use_count_bound CHECK(use_count >= 0) DEFAULT 0,
+    rating          RATING,
     download_name   VARCHAR             NOT NULL);
 
 CREATE OR REPLACE FUNCTION init_material_download_name() RETURNS TRIGGER
@@ -110,7 +112,7 @@ CREATE TABLE material_usage(
 	user_id     BIGINT      NOT NULL    REFERENCES users ON UPDATE CASCADE ON DELETE CASCADE,
 	date        TIMESTAMPTZ NOT NULL,
 	license_id  INT         NOT NULL    REFERENCES licenses ON UPDATE CASCADE ON DELETE RESTRICT,
-    rating      SMALLINT                CONSTRAINT rating_bounds CHECK(rating > 0 and rating <= 10),
+    rating      USER_RATING,
 
     PRIMARY KEY(material_id, user_id));
 
@@ -120,16 +122,14 @@ CREATE TABLE reviews(
 	media_id    BIGINT                  REFERENCES mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
 	user_id     BIGINT      NOT NULL    REFERENCES users,
 	text        TEXT        NOT NULL    CONSTRAINT review_text_not_empty CHECK(text != ''),
-	date        TIMESTAMPTZ NOT NULL,  
-
-    CONSTRAINT one_review_per_user UNIQUE(media_id, user_id));
+	date        TIMESTAMPTZ NOT NULL);
 
 CREATE TABLE moderation_reasons(
 	id      SERIAL  PRIMARY KEY,
 	text    TEXT    NOT NULL);
 
 CREATE TABLE moderation(
-    mederator_id    BIGINT      NOT NULL    REFERENCES users,
+    moderator_id    BIGINT      NOT NULL    REFERENCES users,
 	review_id       BIGINT      PRIMARY KEY REFERENCES reviews ON UPDATE CASCADE ON DELETE CASCADE,
 	reason_id       INT         NOT NULL    REFERENCES moderation_reasons ON UPDATE CASCADE ON DELETE RESTRICT,
     date            TIMESTAMPTZ NOT NULL);
@@ -165,7 +165,7 @@ CREATE TABLE administration_reasons(
 
 CREATE TABLE administration(
     admin_id    BIGINT      NOT NULL    REFERENCES users,
-	material_id BIGINT      PRIMARY KEY REFERENCES materials ON UPDATE CASCADE ON DELETE CASCADE,
+	media_id    BIGINT      PRIMARY KEY REFERENCES mediaproducts ON UPDATE CASCADE ON DELETE CASCADE,
 	reason_id   INT         NOT NULL    REFERENCES administration_reasons ON UPDATE CASCADE ON DELETE RESTRICT,
     date        TIMESTAMPTZ NOT NULL);
 

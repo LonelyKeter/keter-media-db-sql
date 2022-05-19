@@ -10,7 +10,6 @@ CREATE OR REPLACE VIEW mediaproducts(
     kind, 
     author_id, 
     author_name, 
-    author_country, 
     rating, 
     use_count
 ) AS
@@ -20,7 +19,6 @@ SELECT
     m.kind, 
     u.id, 
     u.login, 
-    a.country, 
     (m.rating::real), 
     m.use_count
 FROM public.mediaproducts m 
@@ -28,7 +26,8 @@ INNER JOIN public.users u
     ON m.author_id = u.id
 INNER JOIN public.authors a
     ON a.id = u.id
-WHERE m.public = TRUE;  
+WHERE m.public = TRUE AND m.id NOT IN(SELECT media_id FROM public.administration)
+ORDER BY rating DESC NULLS LAST;  
 
 --MaterialsPublic
 CREATE OR REPLACE VIEW materials(
@@ -52,8 +51,7 @@ SELECT
     download_name
 FROM public.materials m 
 INNER JOIN public.licenses l 
-    ON l.id = m.license_id
-WHERE m.id NOT IN (SELECT material_id FROM public.administration);
+    ON l.id = m.license_id;
 
 
 CREATE OR REPLACE VIEW material_usage(
@@ -88,13 +86,15 @@ FROM public.users;
 --Authors
 CREATE OR REPLACE VIEW authors(
     id, 
-    name, 
-    country
+    name,
+    email,
+    rating
 ) AS
 SELECT 
     u.id, 
-    u.login, 
-    a.country 
+    u.login,
+    a.email,
+    (a.rating::real)
 FROM public.users u
 INNER JOIN public.authors a
     ON a.id = u.id;
@@ -131,3 +131,21 @@ SELECT
     text, 
     date 
 FROM public.licenses;
+
+CREATE OR REPLACE VIEW moderation_reasons(
+    id,
+    text
+) AS 
+SELECT
+    id,
+    text
+FROM public.moderation_reasons;
+
+CREATE OR REPLACE VIEW administration_reasons(
+    id,
+    text
+) AS 
+SELECT
+    id,
+    text
+FROM public.administration_reasons;

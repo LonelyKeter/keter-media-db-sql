@@ -1,4 +1,4 @@
-INSERT INTO mediaproducts(title, author_id, kind, date)
+INSERT INTO mediaproducts (title,author_id,kind,date)
 VALUES
   ('consequat purus. Maecenas libero',2,'image','20-07-31'),
   ('blandit at,',3,'image','19-12-14'),
@@ -25,7 +25,7 @@ VALUES
   ('Proin eget',3,'image','20-03-16'),
   ('ac mattis',1,'audio','20-08-06'),
   ('gravida molestie arcu. Sed',3,'video','20-07-16');
-INSERT INTO mediaproducts(title, author_id, kind, date)
+INSERT INTO mediaproducts (title,author_id,kind,date)
 VALUES
   ('consectetuer rhoncus. Nullam',3,'image','19-12-27'),
   ('lacinia.',4,'audio','20-07-15'),
@@ -52,7 +52,7 @@ VALUES
   ('eu, eleifend nec, malesuada',2,'audio','20-11-27'),
   ('elementum sem,',2,'audio','20-06-21'),
   ('accumsan convallis, ante',4,'audio','20-01-01');
-INSERT INTO mediaproducts(title, author_id, kind, date)
+INSERT INTO mediaproducts (title,author_id,kind,date)
 VALUES
   ('nec, euismod',2,'video','20-04-30'),
   ('odio. Phasellus',2,'video','20-01-28'),
@@ -79,7 +79,7 @@ VALUES
   ('rutrum urna, nec',1,'video','20-01-18'),
   ('semper pretium neque.',4,'video','20-09-20'),
   ('eros nec',1,'video','20-01-22');
-INSERT INTO mediaproducts(title, author_id, kind, date)
+INSERT INTO mediaproducts (title,author_id,kind,date)
 VALUES
   ('Duis mi',3,'audio','20-08-18'),
   ('ut, molestie',3,'image','20-07-17'),
@@ -106,5 +106,3 @@ VALUES
   ('egestas.',4,'video','20-02-02'),
   ('a sollicitudin',1,'image','20-07-27'),
   ('Pellentesque',2,'audio','19-12-30');
-
-
